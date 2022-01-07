@@ -1,10 +1,12 @@
+# -*- coding: utf-8 -*-
 import pygame
+from pprint import pprint
 from pygame import image as pi
 import sys
 import os
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
-SIZE = WIDTH, HEIGHT = 800, 500
+SIZE = WIDTH, HEIGHT = 800, 800
 
 
 def load_image(name, colorkey=None):
@@ -21,18 +23,6 @@ def load_image(name, colorkey=None):
     else:
         image = image.convert_alpha()
     return image
-
-
-def change_picture(self):
-    if not self.player_is_moving or not player.can_move:
-        self.last_animation_step = 0
-        self.image = self.current_image.subsurface(
-            pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
-    else:
-        self.last_animation_step = (self.last_animation_step + 1) % 4
-        self.image = self.current_image.subsurface(
-            pygame.Rect(self.last_animation_step * self.image_width, self.current_orientation * self.image_height,
-                        self.image_width, self.image_height))
 
 
 class BombAnimationPack:
@@ -53,7 +43,6 @@ class BombAnimationPack:
         self.current_exp_image = pygame.sprite.Sprite(self.exp_image_group)
         self.exp_col_cnt = -1
         self.exp_row_cnt = -2
-        self.exp_timer = 0
 
     def update(self):
         value = self.clock.tick()
@@ -114,23 +103,26 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, binded_screen, *groups):
         super().__init__(*groups)
         self.current_orientation = 0
-        self.player_clock = pygame.time.Clock()
-        self.screen = binded_screen
+        # 0 - персонаж повёрнут лицом, 1 - левым боком, 2 - правым боком, 3 - спиной
+        self.last_animation_step = 0
+        self.can_move = True
         self.player_is_moving = False
+
+        self.image_width = 32
+        self.image_height = 48
+        self.full_image = load_image("player_image.png")
+        self.image = self.full_image.subsurface(
+            pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
+        self.rect = self.image.get_rect()
+
+        self.clock = pygame.time.Clock()
+        self.screen = binded_screen
+
         self.detonate_zone = 200
         self.attack_zone = 50
-        self.can_move = True
         self.bomb_planted = False
         self.bomb_animation_pack = BombAnimationPack(self, 3)
         self.bomb_pos = [None, None]
-        self.last_animation_step = 0
-        self.image_width = 32
-        self.image_height = 48
-        # 0 - персонаж повёрнут лицом, 1 - левым боком, 2 - правым боком, 3 - спиной
-        self.current_image = load_image("player_image.png")
-        self.image = self.current_image.subsurface(
-            pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
-        self.rect = self.image.get_rect()
 
     def move(self, moving_vector):
         if self.can_move:
@@ -153,85 +145,196 @@ class Player(pygame.sprite.Sprite):
             if bomb_distance <= self.attack_zone:
                 print("you're dead!")
 
+    def change_picture(self):
+        if not self.player_is_moving or not self.can_move:
+            self.last_animation_step = 0
+            self.image = self.full_image.subsurface(
+                pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
+        else:
+            self.last_animation_step = (self.last_animation_step + 1) % 4
+            self.image = self.full_image.subsurface(
+                pygame.Rect(self.last_animation_step * self.image_width, self.current_orientation * self.image_height,
+                            self.image_width, self.image_height))
+
+
+class DialogWindow(pygame.Surface):
+    def __init__(self, binded_screen, dialog_name):
+        super().__init__(SIZE)
+        self.text = ""
+        self.screen = binded_screen
+        self.text_len = 0
+        self.timer = 0
+        self.clock = pygame.time.Clock()
+        self.last_char_num = -1
+        self.bg_image = pygame.transform.scale(load_image("dialog_bg_image.jpg"), SIZE)
+        self.current_text = ''
+        self.new_paragraph = False
+        self.font = pygame.font.Font("data/fonts/dsmoster.ttf", 20)
+        self.add_char_period = 50  # milliseconds
+        self.add_paragraph_period = 3000
+        self.load_dialog(dialog_name)
+
+    def load_dialog(self, filename):
+        # Реплики в диалогах отделять друг от друга тремя звёздочками. Пример:
+        # Джереми:
+        # Отличный сегодня денёк!
+        #
+        # Не правда ли?)
+        # ***
+        # Алекс:
+        # Действительно!)
+        # ***
+        # Абзацы с неуказанным обозначением произносящего считаются абзацами от автора диалога
+        with open(f"data/dialogs/{filename}", encoding='utf-8') as text_dialog:
+            self.text = text_dialog.read()
+        self.text_len = len(self.text)
+
+    def show_dialog(self):
+        self.change_text()
+        self.blit(self.bg_image, (0, 0))
+        self.write_text()
+
+    def change_text(self):
+        self.timer += self.clock.tick()
+        if self.last_char_num + 1 < self.text_len:
+            if not self.new_paragraph and self.timer >= self.add_char_period:
+                self.current_text += self.text[self.last_char_num + 1]
+                self.last_char_num += 1
+                self.timer = 0
+                if self.text[self.last_char_num + 1:self.last_char_num + 4] == "***":
+                    self.new_paragraph = True
+                    self.last_char_num += 4
+            elif self.new_paragraph and self.timer >= self.add_paragraph_period:
+                self.current_text += self.text[self.last_char_num + 1]
+                self.last_char_num += 1
+                self.new_paragraph = False
+                self.timer = 0
+        self.current_text = self.text[:self.last_char_num + 1]
+
+    def write_text(self):
+        text_array = self.make_text_array()
+        y_indent = 0
+        for elem in text_array:
+            text = self.font.render(elem, True, (50, 50, 50))
+            self.screen.blit(text, (30 - 5, y_indent + 30))
+            y_indent += self.font.size(elem)[1] + 5
+
+    def make_text_array(self):
+        text_array = list()
+        start_point = 0
+        current_len = len(self.current_text)
+        while start_point < current_len:
+            finish_point = start_point + 1
+            avoid_n_symbol = 0
+            while self.font.size(self.current_text[start_point:finish_point])[0] < WIDTH - 60:
+                finish_point += 1
+                if finish_point > current_len:
+                    break
+                if finish_point < current_len and self.current_text[finish_point] == '\n':
+                    avoid_n_symbol += 1
+                    break
+            if not self.current_text[start_point:finish_point].strip() == "***":
+                text_array.append(self.current_text[start_point:finish_point])
+            else:
+                text_array.append('\n')
+            start_point = finish_point + avoid_n_symbol
+        return text_array
+
 
 if __name__ == "__main__":
     pygame.init()
     pygame.time.set_timer(CHANGE_SPRITE, 200)
     pygame.display.set_caption("Loop")
     screen = pygame.display.set_mode(SIZE)
-    clock = pygame.time.Clock()
-    player_group = pygame.sprite.Group()
-    player = Player(screen, player_group)
-    player.rect.x = 200
-    player.rect.y = 200
+    win = DialogWindow(screen, "quick start to plot.txt")
     running = True
-    doubled_speed = False
-    pressed_move_buttons = [False, False, False, False]
-    # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
     while running:
-        clock.tick(30)
-        x_pos_change = 0
-        y_pos_change = 0
+        screen.blit(win, (0, 0))
+        win.show_dialog()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
-                check = False
-                if event.key == pygame.K_UP or event.key == pygame.K_w:
-                    check = True
-                    pressed_move_buttons[3] = True
-                    player.current_orientation = 3
-                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    check = True
-                    pressed_move_buttons[0] = True
-                    player.current_orientation = 0
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    check = True
-                    pressed_move_buttons[2] = True
-                    player.current_orientation = 2
-                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    check = True
-                    pressed_move_buttons[1] = True
-                    player.current_orientation = 1
-                if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
-                    pygame.time.set_timer(CHANGE_SPRITE, 100)
-                    doubled_speed = True
-                if event.key == pygame.K_r:
-                    player.plant_bomb()
-                if event.key == pygame.K_e:
-                    player.detonate_bomb()
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                if check:
-                    player.player_is_moving = True
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_UP or event.key == pygame.K_w:
-                    pressed_move_buttons[3] = False
-                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    pressed_move_buttons[0] = False
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    pressed_move_buttons[2] = False
-                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    pressed_move_buttons[1] = False
-                if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
-                    pygame.time.set_timer(CHANGE_SPRITE, 200)
-                    doubled_speed = False
-                if event.key == pygame.K_r:
-                    player.bomb_animation_pack.kill_process_bar()
-                if True not in pressed_move_buttons:
-                    player.player_is_moving = False
-                for ind in range(3, -1, -1):
-                    if pressed_move_buttons[ind]:
-                        player.current_orientation = ind
-            if event.type == CHANGE_SPRITE:
-                change_picture(player)
-        speed = 2 * (1 + doubled_speed)
-        y_pos_change -= speed * pressed_move_buttons[3]
-        y_pos_change += speed * pressed_move_buttons[0]
-        x_pos_change += speed * pressed_move_buttons[2]
-        x_pos_change -= speed * pressed_move_buttons[1]
-        screen.fill((0, 0, 0))
-        player.move([x_pos_change, y_pos_change])
-        player_group.draw(screen)
-        player.bomb_animation_pack.update()
         pygame.display.flip()
+    # pygame.init()
+    # pygame.time.set_timer(CHANGE_SPRITE, 200)
+    # pygame.display.set_caption("Loop")
+    # screen = pygame.display.set_mode(SIZE)
+    # clock = pygame.time.Clock()
+    # player_group = pygame.sprite.Group()
+    # player = Player(screen, player_group)
+    # player.rect.x = 200
+    # player.rect.y = 200
+    # running = True
+    # doubled_speed = False
+    # pressed_move_buttons = [False, False, False, False]
+    # # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
+    # while running:
+    #     clock.tick(30)
+    #     x_pos_change = 0
+    #     y_pos_change = 0
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.QUIT:
+    #             running = False
+    #         if event.type == pygame.KEYDOWN:
+    #             check = False
+    #             if event.key == pygame.K_UP or event.key == pygame.K_w:
+    #                 check = True
+    #                 pressed_move_buttons[3] = True
+    #                 player.current_orientation = 3
+    #             if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+    #                 check = True
+    #                 pressed_move_buttons[0] = True
+    #                 player.current_orientation = 0
+    #             if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+    #                 check = True
+    #                 pressed_move_buttons[2] = True
+    #                 player.current_orientation = 2
+    #             if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+    #                 check = True
+    #                 pressed_move_buttons[1] = True
+    #                 player.current_orientation = 1
+    #             if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
+    #                 pygame.time.set_timer(CHANGE_SPRITE, 100)
+    #                 doubled_speed = True
+    #             if event.key == pygame.K_r:
+    #                 player.plant_bomb()
+    #             if event.key == pygame.K_e:
+    #                 player.detonate_bomb()
+    #             if event.key == pygame.K_ESCAPE:
+    #                 running = False
+    #             if check:
+    #                 player.player_is_moving = True
+    #         if event.type == pygame.KEYUP:
+    #             if event.key == pygame.K_UP or event.key == pygame.K_w:
+    #                 pressed_move_buttons[3] = False
+    #             if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+    #                 pressed_move_buttons[0] = False
+    #             if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+    #                 pressed_move_buttons[2] = False
+    #             if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+    #                 pressed_move_buttons[1] = False
+    #             if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
+    #                 pygame.time.set_timer(CHANGE_SPRITE, 200)
+    #                 doubled_speed = False
+    #             if event.key == pygame.K_r:
+    #                 player.bomb_animation_pack.kill_process_bar()
+    #             if True not in pressed_move_buttons:
+    #                 player.player_is_moving = False
+    #             for ind in range(3, -1, -1):
+    #                 if pressed_move_buttons[ind]:
+    #                     player.current_orientation = ind
+    #         if event.type == CHANGE_SPRITE:
+    #             player.change_picture()
+    #     speed = 2 * (1 + doubled_speed)
+    #     y_pos_change -= speed * pressed_move_buttons[3]
+    #     y_pos_change += speed * pressed_move_buttons[0]
+    #     x_pos_change += speed * pressed_move_buttons[2]
+    #     x_pos_change -= speed * pressed_move_buttons[1]
+    #     screen.fill((0, 0, 0))
+    #     player.move([x_pos_change, y_pos_change])
+    #     player_group.draw(screen)
+    #     player.bomb_animation_pack.update()
+    #     pygame.display.flip()
