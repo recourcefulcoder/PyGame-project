@@ -79,19 +79,16 @@ class Camera:
         self.dx = 0
         self.dy = 0
 
-    def update(self, target):  # корректирует сдвиг камеры
-        self.dx = -(target.rect.x - WIDTH / 2)
-        self.dy = -(target.rect.y - HEIGHT / 2)
+    def update(self, player):  # корректирует сдвиг камеры
+        self.dx = -(player.rect.x - WIDTH / 2)
+        self.dy = -(player.rect.y - HEIGHT / 2)
+        player.bomb_animation_pack.x_indent += self.dx
+        player.bomb_animation_pack.y_indent += self.dy
 
     def apply(self, all_sprites):  # сдвигает объекты
         for obj in all_sprites:
             obj.rect.x += self.dx
             obj.rect.y += self.dy
-
-    def change_bomb_pack_indent(self, bomb_animation_pack):
-        # pos - кортеж из двух элементов - смещения по x и смещения по y соответственно порядку
-        bomb_animation_pack.x_indent += self.dx
-        bomb_animation_pack.y_indent += self.dy
 
 
 def terminate():

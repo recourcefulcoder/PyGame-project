@@ -4,7 +4,7 @@ from pygame import image as pi
 import sys
 import os
 from generate_level import (load_level, generate_level, terminate,
-                            Tile, Camera)
+                            Camera)
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
@@ -27,7 +27,7 @@ def load_image(name, colorkey=None):
 
 
 class BombAnimationPack:
-    def __init__(self, player, time_period, all_sprites_group):
+    def __init__(self, player, time_period, all_sprite_group):
         self.time_gone = 0
         self.clock = pygame.time.Clock()
         self.time_period = time_period
@@ -36,15 +36,15 @@ class BombAnimationPack:
 
         self.alpha_screen = pygame.Surface(SIZE)
         self.alpha_screen.set_alpha(100)
-        self.x_indent = 0
-        self.y_indent = 0
+        self.x_indent = -300
+        self.y_indent = -300
 
         self.player = player
 
         self.explosion_image = load_image("explosion.png")
         self.exp_image_group = pygame.sprite.Group()
-        self.current_exp_image = pygame.sprite.Sprite(self.exp_image_group, all_sprites_group)
-        self.current_exp_image.rect = pygame.Rect(0, 0, 100, 100)
+        self.current_exp_image = pygame.sprite.Sprite(self.exp_image_group, all_sprite_group)
+        self.current_exp_image.rect = pygame.Rect(300, 300, 100, 100)
         self.exp_col_cnt = -1
         self.exp_row_cnt = -2
 
@@ -65,14 +65,14 @@ class BombAnimationPack:
                           self.time_gone / (self.time_period * 1000) * self.player.image_width - 1, 5))
         if self.time_gone + value >= self.time_period * 1000:
             self.player.bomb_planted = True
-
             self.current_exp_image.rect = pygame.Rect(
-                self.player.bomb_pos[0] - 50, self.player.bomb_pos[1] - 50, 100, 100)
+                self.player.bomb_pos[0] + abs(self.x_indent) + 300 - 50 + self.player.image_width // 2,
+                self.player.bomb_pos[1] + abs(self.y_indent) + 300 - 50 + self.player.image_height, 100, 100)
             self.kill_process_bar()
 
     def update_bomb_borders(self):
-        center = [self.player.bomb_pos[0], self.player.bomb_pos[1]]
         self.alpha_screen.fill((0, 0, 0))
+        center = [300 + self.player.image_width // 2, 300 + self.player.image_height]
         if not self.process_dead:
             pygame.draw.circle(self.alpha_screen, (219, 137, 0), center,
                                self.time_gone / (self.time_period * 1000) * self.player.detonate_zone)
@@ -82,7 +82,8 @@ class BombAnimationPack:
         if self.player.bomb_planted:
             pygame.draw.circle(self.alpha_screen, (219, 137, 0), center, self.player.detonate_zone)
             pygame.draw.circle(self.alpha_screen, (255, 0, 0), center, self.player.attack_zone)
-            self.player.screen.blit(self.alpha_screen, (self.x_indent, self.y_indent))
+            self.player.screen.blit(self.alpha_screen,
+                                    (self.x_indent - self.player.bomb_pos[0], self.y_indent - self.player.bomb_pos[1]))
 
     def animate_explosion(self):
         if self.exp_row_cnt == -2:
@@ -121,13 +122,12 @@ class Player(pygame.sprite.Sprite):
 
         self.clock = pygame.time.Clock()
         self.screen = binded_screen
+        self.camera = Camera()
 
         self.detonate_zone = 200
         self.attack_zone = 50
         self.bomb_planted = False
-        self.bomb_animation_pack = BombAnimationPack(self, 3,
-                                                     all_sprites_group)  # считается, что первый элемент контейнера
-        # groups - all_sprites_group
+        self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
         self.bomb_pos = [None, None]
 
     def move(self, moving_vector):
@@ -136,15 +136,15 @@ class Player(pygame.sprite.Sprite):
 
     def plant_bomb(self):
         if not self.bomb_planted:
-            self.bomb_pos = [self.rect.x + self.image_width // 2,
-                             self.rect.y + self.image_height]
+            self.bomb_pos = [self.bomb_animation_pack.x_indent,
+                             self.bomb_animation_pack.y_indent]
             self.can_move = False
             self.bomb_animation_pack.process_dead = False
 
     def detonate_bomb(self):
         if self.bomb_planted:
-            bomb_distance = ((self.rect.x + self.image_width // 2 - self.bomb_pos[0]) ** 2 + (
-                    self.rect.y + self.image_height // 2 - self.bomb_pos[1]) ** 2) ** 0.5
+            bomb_distance = ((self.bomb_animation_pack.x_indent - self.bomb_pos[0]) ** 2 + (
+                    self.bomb_animation_pack.y_indent - self.bomb_pos[1]) ** 2) ** 0.5
             if bomb_distance <= self.detonate_zone:
                 self.bomb_planted = False
                 self.bomb_animation_pack.exp_row_cnt += 1
@@ -356,7 +356,6 @@ def game_process_main():
         screen.fill((0, 0, 0))
         player.move([x_pos_change, y_pos_change])
         camera.update(player)
-        camera.change_bomb_pack_indent(player.bomb_animation_pack)
         camera.apply(all_sprites_group)
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
