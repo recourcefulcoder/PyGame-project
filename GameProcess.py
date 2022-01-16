@@ -4,7 +4,7 @@ from pygame import image as pi
 import sys
 import os
 from generate_level import (load_level, generate_level, terminate,
-                            Camera)
+                            Camera, STEP)
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
@@ -26,6 +26,15 @@ def load_image(name, colorkey=None):
     return image
 
 
+def count_player_coords(player):
+    # Находит местополжение игрока на матрице карты
+    # (возвращаемое значение функции load_level в файле generate_level)
+    # определяется по центру изображения игрока
+    x_coord = player.map_x_pos // STEP
+    y_coord = player.map_y_pos // STEP
+    return x_coord, y_coord
+
+
 class BombAnimationPack:
     def __init__(self, player, time_period, all_sprite_group):
         self.time_gone = 0
@@ -36,6 +45,7 @@ class BombAnimationPack:
 
         self.alpha_screen = pygame.Surface(SIZE)
         self.alpha_screen.set_alpha(100)
+        self.alpha_screen.set_colorkey((0, 0, 0))
         self.x_indent = -300
         self.y_indent = -300
 
@@ -119,6 +129,8 @@ class Player(pygame.sprite.Sprite):
         self.image = self.full_image.subsurface(
             pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
         self.rect = self.image.get_rect()
+        self.map_x_pos = self.image_width // 2  # Здесь находятся координаты относительно левого верхнего
+        self.map_y_pos = self.image_height // 2  # угла карты центра изображения персонажа
 
         self.clock = pygame.time.Clock()
         self.screen = binded_screen
@@ -133,6 +145,8 @@ class Player(pygame.sprite.Sprite):
     def move(self, moving_vector):
         if self.can_move:
             self.rect = self.rect.move(*moving_vector)
+            self.map_x_pos += moving_vector[0]
+            self.map_y_pos += moving_vector[1]
 
     def plant_bomb(self):
         if not self.bomb_planted:
@@ -360,6 +374,9 @@ def game_process_main():
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
         player_group.draw(screen)
+        # пример импользования функции
+        print(count_player_coords(player))
+        # пример импользования функции
         pygame.display.flip()
     terminate()
 
