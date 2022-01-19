@@ -367,7 +367,7 @@ def game_process_main():
         y_pos_change += speed * pressed_move_buttons[0]
         x_pos_change += speed * pressed_move_buttons[2]
         x_pos_change -= speed * pressed_move_buttons[1]
-        screen.fill((0, 0, 0))
+        screen.blit(load_image('map_bg_image.jpg'), (0, 0))
         player.move([x_pos_change, y_pos_change])
         camera.update(player)
         camera.apply(all_sprites_group)
@@ -375,7 +375,7 @@ def game_process_main():
         player.bomb_animation_pack.update()
         player_group.draw(screen)
         # пример импользования функции
-        print(count_player_coords(player))
+        #print(count_player_coords(player))
         # пример импользования функции
         pygame.display.flip()
     terminate()
