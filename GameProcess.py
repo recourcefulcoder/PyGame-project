@@ -3,6 +3,7 @@ import pygame
 from pygame import image as pi
 import sys
 import os
+from math import floor
 from generate_level import (load_level, generate_level, terminate,
                             Camera, STEP)
 
@@ -26,12 +27,23 @@ def load_image(name, colorkey=None):
     return image
 
 
-def count_player_coords(player):
+def count_player_coords_p(player):
     # Находит местополжение игрока на матрице карты
     # (возвращаемое значение функции load_level в файле generate_level)
     # определяется по центру изображения игрока
-    x_coord = player.map_x_pos // STEP
-    y_coord = player.map_y_pos // STEP
+    # предоположительно будет использоваться при получении бонусов
+    x_coord = floor(player.map_x_pos / STEP)  # выяснила опытным путем, что работает только сокруглением вниз
+    y_coord = floor(player.map_y_pos / STEP)
+    return x_coord, y_coord
+
+
+def count_player_coords_c(x, y):
+    # Находит местополжение игрока на матрице карты
+    # (возвращаемое значение функции load_level в файле generate_level)
+    # определяется по переданным координатам
+    # предоположительно будет использоваться при взаимодействии со стенами
+    x_coord = floor(x / STEP)
+    y_coord = floor(y / STEP)
     return x_coord, y_coord
 
 
@@ -142,11 +154,18 @@ class Player(pygame.sprite.Sprite):
         self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
         self.bomb_pos = [None, None]
 
-    def move(self, moving_vector):
+    def move(self, moving_vector, map):
         if self.can_move:
-            self.rect = self.rect.move(*moving_vector)
-            self.map_x_pos += moving_vector[0]
-            self.map_y_pos += moving_vector[1]
+            # определяет, не вышел ли персонаж за пределы карты
+            if not (STEP * 35 >= self.map_x_pos + moving_vector[0] >= 0):
+                moving_vector[0] = 0
+            if not (STEP * 29.6 >= self.map_y_pos + moving_vector[1] >= 0):
+                moving_vector[1] = 0
+            map_x, map_y = count_player_coords_c(self.map_x_pos + moving_vector[0], self.map_y_pos + moving_vector[1])
+            if map[map_y][map_x] != 'grey':  # проверяет, не войдет ли персонаж в стену
+                self.rect = self.rect.move(*moving_vector)
+                self.map_x_pos += moving_vector[0]
+                self.map_y_pos += moving_vector[1]
 
     def plant_bomb(self):
         if not self.bomb_planted:
@@ -368,7 +387,7 @@ def game_process_main():
         x_pos_change += speed * pressed_move_buttons[2]
         x_pos_change -= speed * pressed_move_buttons[1]
         screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-        player.move([x_pos_change, y_pos_change])
+        player.move([x_pos_change, y_pos_change], current_level)
         camera.update(player)
         camera.apply(all_sprites_group)
         tiles_group.draw(screen)
