@@ -127,7 +127,7 @@ def generate_level_main():
 
         camera.apply(all_sprites)
 
-        screen.fill(pygame.Color(0, 0, 0))
+        screen.blit(load_image('map_bg_image.jpg'), (0, 0))
         tiles_group.draw(screen)
         player_group.draw(screen)
 
