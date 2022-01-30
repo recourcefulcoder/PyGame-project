@@ -47,6 +47,19 @@ def count_player_coords_c(x, y):
     return x_coord, y_coord
 
 
+def check_position(player, map):
+    # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
+    y, x = count_player_coords_p(player)
+    if map[x][y] == 'white':
+        player.has_buckler = True
+    if map[x][y] == 'red':
+        if player.has_buсkler:
+            player.has_buckler = False
+        else:
+            pass  # смерть
+
+
+
 class BombAnimationPack:
     def __init__(self, player, time_period, all_sprite_group):
         self.time_gone = 0
@@ -153,6 +166,8 @@ class Player(pygame.sprite.Sprite):
         self.bomb_planted = False
         self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
         self.bomb_pos = [None, None]
+
+        self.has_buckler = False
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -389,13 +404,11 @@ def game_process_main():
         screen.blit(load_image('map_bg_image.jpg'), (0, 0))
         player.move([x_pos_change, y_pos_change], current_level)
         camera.update(player)
+        check_position(player, current_level)
         camera.apply(all_sprites_group)
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
         player_group.draw(screen)
-        # пример импользования функции
-        #print(count_player_coords(player))
-        # пример импользования функции
         pygame.display.flip()
     terminate()
 
