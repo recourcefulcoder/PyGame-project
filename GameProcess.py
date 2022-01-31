@@ -59,6 +59,11 @@ def check_position(player, map):
             pass  # смерть
 
 
+def draw_icon(screen, image_name, pose):
+    image = load_image(image_name, -1)
+    screen.blit(image, pose)
+
+
 
 class BombAnimationPack:
     def __init__(self, player, time_period, all_sprite_group):
@@ -409,6 +414,8 @@ def game_process_main():
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
         player_group.draw(screen)
+        if player.has_buckler:
+            draw_icon(screen, 'buckler.png', (730, 20))
         pygame.display.flip()
     terminate()
 
