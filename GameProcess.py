@@ -186,6 +186,16 @@ class Player(pygame.sprite.Sprite):
                 self.rect = self.rect.move(*moving_vector)
                 self.map_x_pos += moving_vector[0]
                 self.map_y_pos += moving_vector[1]
+            else:
+                map_x, map_y = count_player_coords_c(self.map_x_pos + moving_vector[0], self.map_y_pos)
+                if map[map_y][map_x] != 'grey':
+                    self.rect = self.rect.move(moving_vector[0], 0)
+                    self.map_x_pos += moving_vector[0]
+                else:
+                    map_x, map_y = count_player_coords_c(self.map_x_pos, self.map_y_pos + moving_vector[1])
+                    if map[map_y][map_x] != 'grey':
+                        self.rect = self.rect.move(0, moving_vector[1])
+                        self.map_y_pos += moving_vector[1]
 
     def plant_bomb(self):
         if not self.bomb_planted:
