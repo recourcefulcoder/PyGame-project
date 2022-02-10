@@ -47,18 +47,6 @@ def count_player_coords_c(x, y):
     return x_coord, y_coord
 
 
-def check_position(player, map):
-    # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
-    y, x = count_player_coords_p(player)
-    if map[x][y] == 'white':
-        player.has_buckler = True
-    if map[x][y] == 'red':
-        if player.has_buсkler:
-            player.has_buckler = False
-        else:
-            pass  # смерть
-
-
 def draw_icon(screen, image_name, pose):
     image = load_image(image_name, -1)
     screen.blit(image, pose)
@@ -173,6 +161,7 @@ class Player(pygame.sprite.Sprite):
         self.bomb_pos = [None, None]
 
         self.has_buckler = False
+        self.has_detector = False
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -224,6 +213,34 @@ class Player(pygame.sprite.Sprite):
             self.image = self.full_image.subsurface(
                 pygame.Rect(self.last_animation_step * self.image_width, self.current_orientation * self.image_height,
                             self.image_width, self.image_height))
+
+    def check_position(self, map):
+        print(self.has_buckler)
+        # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
+        y, x = count_player_coords_p(self)
+        if map[x][y] == 'white':
+            self.has_buckler = True
+        if map[x][y] == 'blue':
+            self.has_detector = True
+        if map[x][y] == 'red':
+            if self.has_buсkler:
+                self.has_buckler = False
+            else:
+                pass  # смерть
+
+    def detect(self, map, screen):
+        # ищет и подсвечиает мины вокруг игрока
+        y, x = count_player_coords_p(self)
+        screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
+        pygame.draw.circle(screen, (255, 255, 255),
+                           (screen_x, screen_y), 75, 3)
+        steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
+        for elem in steps:
+            if map[x+elem[0]][y+elem[1]] == 'red':
+                pygame.draw.circle(screen, (255, 0, 0),
+                                   (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
+
+
 
 
 class DialogWindow(pygame.Surface):
@@ -419,13 +436,17 @@ def game_process_main():
         screen.blit(load_image('map_bg_image.jpg'), (0, 0))
         player.move([x_pos_change, y_pos_change], current_level)
         camera.update(player)
-        check_position(player, current_level)
+        player.check_position(current_level)
         camera.apply(all_sprites_group)
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
         player_group.draw(screen)
+        player.has_detector = True
         if player.has_buckler:
             draw_icon(screen, 'buckler.png', (730, 20))
+        if player.has_detector:
+            draw_icon(screen, 'detector.png', (680, 20))
+            #player.detect(current_level, screen)
         pygame.display.flip()
     terminate()
 
