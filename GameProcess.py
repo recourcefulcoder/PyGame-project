@@ -215,7 +215,6 @@ class Player(pygame.sprite.Sprite):
                             self.image_width, self.image_height))
 
     def check_position(self, map):
-        print(self.has_buckler)
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
         if map[x][y] == 'white':
@@ -223,7 +222,7 @@ class Player(pygame.sprite.Sprite):
         if map[x][y] == 'blue':
             self.has_detector = True
         if map[x][y] == 'red':
-            if self.has_buсkler:
+            if self.has_buckler:
                 self.has_buckler = False
             else:
                 pass  # смерть
