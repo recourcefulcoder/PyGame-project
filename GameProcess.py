@@ -52,7 +52,6 @@ def draw_icon(screen, image_name, pose):
     screen.blit(image, pose)
 
 
-
 class BombAnimationPack:
     def __init__(self, player, time_period, all_sprite_group):
         self.time_gone = 0
@@ -64,8 +63,6 @@ class BombAnimationPack:
         self.alpha_screen = pygame.Surface(SIZE)
         self.alpha_screen.set_alpha(100)
         self.alpha_screen.set_colorkey((0, 0, 0))
-        self.x_indent = -300
-        self.y_indent = -300
 
         self.player = player
 
@@ -94,8 +91,8 @@ class BombAnimationPack:
         if self.time_gone + value >= self.time_period * 1000:
             self.player.bomb_planted = True
             self.current_exp_image.rect = pygame.Rect(
-                self.player.bomb_pos[0] + abs(self.x_indent) + 300 - 50 + self.player.image_width // 2,
-                self.player.bomb_pos[1] + abs(self.y_indent) + 300 - 50 + self.player.image_height, 100, 100)
+                self.player.bomb_pos[0] + abs(self.player.x_indent) + 300 - 50 + self.player.image_width // 2,
+                self.player.bomb_pos[1] + abs(self.player.y_indent) + 300 - 50 + self.player.image_height, 100, 100)
             self.kill_process_bar()
 
     def update_bomb_borders(self):
@@ -111,7 +108,8 @@ class BombAnimationPack:
             pygame.draw.circle(self.alpha_screen, (219, 137, 0), center, self.player.detonate_zone)
             pygame.draw.circle(self.alpha_screen, (255, 0, 0), center, self.player.attack_zone)
             self.player.screen.blit(self.alpha_screen,
-                                    (self.x_indent - self.player.bomb_pos[0], self.y_indent - self.player.bomb_pos[1]))
+                                    (self.player.x_indent - self.player.bomb_pos[0],
+                                     self.player.y_indent - self.player.bomb_pos[1]))
 
     def animate_explosion(self):
         if self.exp_row_cnt == -2:
@@ -159,6 +157,8 @@ class Player(pygame.sprite.Sprite):
         self.bomb_planted = False
         self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
         self.bomb_pos = [None, None]
+        self.x_indent = -300
+        self.y_indent = -300
 
         self.has_buckler = False
         self.has_detector = False
@@ -188,15 +188,15 @@ class Player(pygame.sprite.Sprite):
 
     def plant_bomb(self):
         if not self.bomb_planted:
-            self.bomb_pos = [self.bomb_animation_pack.x_indent,
-                             self.bomb_animation_pack.y_indent]
+            self.bomb_pos = [self.x_indent,
+                             self.y_indent]
             self.can_move = False
             self.bomb_animation_pack.process_dead = False
 
     def detonate_bomb(self):
         if self.bomb_planted:
-            bomb_distance = ((self.bomb_animation_pack.x_indent - self.bomb_pos[0]) ** 2 + (
-                    self.bomb_animation_pack.y_indent - self.bomb_pos[1]) ** 2) ** 0.5
+            bomb_distance = ((self.x_indent - self.bomb_pos[0]) ** 2 + (
+                    self.y_indent - self.bomb_pos[1]) ** 2) ** 0.5
             if bomb_distance <= self.detonate_zone:
                 self.bomb_planted = False
                 self.bomb_animation_pack.exp_row_cnt += 1
@@ -215,32 +215,40 @@ class Player(pygame.sprite.Sprite):
                             self.image_width, self.image_height))
 
     def check_position(self, map):
-        print(self.has_buckler)
-        # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
+        #  print(self.has_buckler)
+        #  проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
         if map[x][y] == 'white':
             self.has_buckler = True
         if map[x][y] == 'blue':
             self.has_detector = True
         if map[x][y] == 'red':
-            if self.has_buсkler:
+            if self.has_buckler:
                 self.has_buckler = False
             else:
                 pass  # смерть
 
-    def detect(self, map, screen):
+    def detect(self, map, screen, key='red'):
         # ищет и подсвечиает мины вокруг игрока
         y, x = count_player_coords_p(self)
         screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
-        pygame.draw.circle(screen, (255, 255, 255),
-                           (screen_x, screen_y), 75, 3)
+        print(screen_x, screen_y)
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
-        for elem in steps:
-            if map[x+elem[0]][y+elem[1]] == 'red':
-                pygame.draw.circle(screen, (255, 0, 0),
-                                   (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
-
-
+        if key == 'red':
+            pygame.draw.circle(screen, (255, 255, 255),
+                               (screen_x, screen_y), 75, 3)
+            for elem in steps:
+                if map[x + elem[0]][y + elem[1]] == 'red':
+                    pygame.draw.circle(screen, (255, 0, 0),
+                                       (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
+        elif key == 'brown':
+            for point in steps:
+                ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
+                dist = ((abs(self.x_indent) + self.image_width // 2 - ppos[0]) ** 2 + (
+                        abs(self.y_indent) + self.image_height - ppos[1]) ** 2) ** 0.5
+                #  print(f"({x}, {y}), dist: {dist}, point: {point}")
+                if dist <= self.attack_zone:
+                    print(f"exploded point ({x}, {y}) + {point}")
 
 
 class DialogWindow(pygame.Surface):
@@ -442,11 +450,8 @@ def game_process_main():
         player.bomb_animation_pack.update()
         player_group.draw(screen)
         player.has_detector = True
-        if player.has_buckler:
-            draw_icon(screen, 'buckler.png', (730, 20))
-        if player.has_detector:
-            draw_icon(screen, 'detector.png', (680, 20))
-            #player.detect(current_level, screen)
+        player.detect(current_level, screen, key="brown")
+        # player.detect(current_level, screen)
         pygame.display.flip()
     terminate()
 

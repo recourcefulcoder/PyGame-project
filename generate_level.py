@@ -82,8 +82,8 @@ class Camera:
     def update(self, player):  # корректирует сдвиг камеры
         self.dx = -(player.rect.x - WIDTH / 2)
         self.dy = -(player.rect.y - HEIGHT / 2)
-        player.bomb_animation_pack.x_indent += self.dx
-        player.bomb_animation_pack.y_indent += self.dy
+        player.x_indent += self.dx
+        player.y_indent += self.dy
 
     def apply(self, all_sprites):  # сдвигает объекты
         for obj in all_sprites:
