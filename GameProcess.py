@@ -232,14 +232,13 @@ class Player(pygame.sprite.Sprite):
         y, x = count_player_coords_p(self)
         screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
         pygame.draw.circle(screen, (255, 255, 255),
-                           (screen_x, screen_y), 75, 3)
+                           (screen_x, screen_y), 90, 3)
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
         for elem in steps:
-            if map[x+elem[0]][y+elem[1]] == 'red':
-                pygame.draw.circle(screen, (255, 0, 0),
-                                   (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
-
-
+            if 0 <= x + elem[0] < len(map) and 0 <= y + elem[1] < len(map[0]):
+                if map[x + elem[0]][y + elem[1]] == 'red':
+                    pygame.draw.circle(screen, (255, 0, 0),
+                                       (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
 
 
 class DialogWindow(pygame.Surface):
@@ -445,7 +444,7 @@ def game_process_main():
             draw_icon(screen, 'buckler.png', (730, 20))
         if player.has_detector:
             draw_icon(screen, 'detector.png', (680, 20))
-            #player.detect(current_level, screen)
+            player.detect(current_level, screen)
         pygame.display.flip()
     terminate()
 
