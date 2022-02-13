@@ -162,6 +162,8 @@ class Player(pygame.sprite.Sprite):
 
         self.has_buckler = False
         self.has_detector = False
+        self.current_checkpoint = [0, [self.map_x_pos, self.map_y_pos]]
+        self.detonated_mines = []
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -217,15 +219,23 @@ class Player(pygame.sprite.Sprite):
     def check_position(self, map):
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
-        if map[x][y] == 'white':
+        current_cell = map[x][y]
+        if current_cell == 'white':
             self.has_buckler = True
-        if map[x][y] == 'blue':
+        if current_cell == 'blue':
             self.has_detector = True
-        if map[x][y] == 'red':
+        if len(current_cell) == 1:
+            if int(current_cell) > self.current_checkpoint[0]:
+                self.current_checkpoint[0] = int(current_cell)
+                self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
+        if current_cell == 'red' and (x, y) not in self.detonated_mines:
             if self.has_buckler:
+                self.detonated_mines.append((x, y))
                 self.has_buckler = False
             else:
-                pass  # смерть
+                self.has_detector = False
+                '''тут должна быть анимация смерти'''
+                self.revival(map)
 
     def detect(self, map, screen):
         # ищет и подсвечиает мины вокруг игрока
@@ -236,9 +246,12 @@ class Player(pygame.sprite.Sprite):
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
         for elem in steps:
             if 0 <= x + elem[0] < len(map) and 0 <= y + elem[1] < len(map[0]):
-                if map[x + elem[0]][y + elem[1]] == 'red':
+                if map[x + elem[0]][y + elem[1]] == 'red' and (x + elem[0], y + elem[1]) not in self.detonated_mines:
                     pygame.draw.circle(screen, (255, 0, 0),
                                        (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
+
+    def revival(self, map):
+        self.move([self.current_checkpoint[1][0] - self.map_x_pos, self.current_checkpoint[1][1] - self.map_y_pos], map)
 
 
 class DialogWindow(pygame.Surface):
