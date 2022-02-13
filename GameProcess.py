@@ -439,7 +439,6 @@ def game_process_main():
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
         player_group.draw(screen)
-        player.has_detector = True
         if player.has_buckler:
             draw_icon(screen, 'buckler.png', (730, 20))
         if player.has_detector:
