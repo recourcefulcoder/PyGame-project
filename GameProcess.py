@@ -234,6 +234,7 @@ class Player(pygame.sprite.Sprite):
                 self.has_buckler = False
             else:
                 self.has_detector = False
+                self.detonated_mines.clear()
                 '''тут должна быть анимация смерти'''
                 self.revival(map)
 
@@ -458,6 +459,7 @@ def game_process_main():
             draw_icon(screen, 'detector.png', (680, 20))
             player.detect(current_level, screen)
         pygame.display.flip()
+
     terminate()
 
 
