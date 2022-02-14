@@ -3,12 +3,20 @@ import pygame
 from pygame import image as pi
 import sys
 import os
+import json
 from math import floor
 from generate_level import (load_level, generate_level, terminate,
                             Camera, STEP)
+from PyQt5.QtWidgets import QWidget, QApplication
+from PyQt5.QtCore import Qt
+from PyQt5 import uic
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
+
+
+def except_hook(cls, traceback, exception):
+    sys.__excepthook__(cls, traceback, exception)
 
 
 def load_image(name, colorkey=None):
@@ -162,6 +170,9 @@ class Player(pygame.sprite.Sprite):
 
         self.has_buckler = False
         self.has_detector = False
+        self.current_checkpoint = [0, [self.map_x_pos, self.map_y_pos]]
+        self.detonated_mines = []
+        self.destroyed_towers = []  # здесь будет список из координат уничтоженных вышек
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -232,7 +243,6 @@ class Player(pygame.sprite.Sprite):
         # ищет и подсвечиает мины вокруг игрока
         y, x = count_player_coords_p(self)
         screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
-        print(screen_x, screen_y)
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
         if key == 'red':
             pygame.draw.circle(screen, (255, 255, 255),
@@ -242,13 +252,19 @@ class Player(pygame.sprite.Sprite):
                     pygame.draw.circle(screen, (255, 0, 0),
                                        (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
         elif key == 'brown':
-            for point in steps:
-                ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
-                dist = ((abs(self.x_indent) + self.image_width // 2 - ppos[0]) ** 2 + (
-                        abs(self.y_indent) + self.image_height - ppos[1]) ** 2) ** 0.5
-                #  print(f"({x}, {y}), dist: {dist}, point: {point}")
-                if dist <= self.attack_zone:
-                    print(f"exploded point ({x}, {y}) + {point}")
+            steps.append((0, 0))
+            if self.bomb_planted:
+                ans = list()
+                for point in steps:
+                    ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
+                    dist = ((abs(self.bomb_pos[0]) + self.image_width // 2 - ppos[0]) ** 2 + (
+                            abs(self.bomb_pos[1]) + self.image_height - ppos[1]) ** 2) ** 0.5
+                    # оказывается, bomb_pos хранит координаты левого верхнего угла изображения игрока
+                    # в момент закладки бомбы, а не её технические координаты на карте
+                    if dist <= self.attack_zone and not (x + point[0] < 0 or y + point[1] < 0):
+                        ans.append([x + point[0], y + point[1]])
+                return ans
+            return list()
 
 
 class DialogWindow(pygame.Surface):
@@ -335,6 +351,39 @@ class DialogWindow(pygame.Surface):
         return text_array
 
 
+class LeaveGameWindow(QWidget):
+    def __init__(self, player, current_level, username):
+        super().__init__()
+        uic.loadUi("ui_files/leave_game_win.ui", self)
+        self.running = True
+        self.player = player
+        self.current_level = current_level
+        print(self.current_level)
+        self.username = username
+        self.no_btn.clicked.connect(self.close)
+        self.yes_btn.clicked.connect(self.close_and_safe)
+
+    def close_and_safe(self):
+        print(self.current_level)
+        if "first" in self.current_level:
+            self.current_level = 1
+        elif "sec" in self.current_level:
+            self.current_level = 2
+        else:
+            self.current_level = 3
+        with open(f"data/progress/{self.username}.txt", mode='w', encoding="utf-8") as infofile:
+            data = {
+                "level_num": self.current_level,
+                "checkpoint": self.player.current_checkpoint,
+                "has_shield": self.player.has_buckler,
+                "has_detector": self.player.has_detector,
+                "destroyed_towers": self.player.destroyed_towers
+            }
+            writedata = json.dumps(data)
+            infofile.write(writedata)
+        self.running = False
+
+
 def dialog_win_main():
     pygame.init()
     pygame.time.set_timer(CHANGE_SPRITE, 200)
@@ -355,7 +404,9 @@ def dialog_win_main():
     terminate()
 
 
-def game_process_main():
+def game_process_main(level_name, username):
+    sys.excepthook = except_hook
+    app = QApplication(sys.argv)
     pygame.init()
     pygame.time.set_timer(CHANGE_SPRITE, 200)
     pygame.display.set_caption("Loop")
@@ -363,7 +414,7 @@ def game_process_main():
 
     clock = pygame.time.Clock()
 
-    current_level = load_level("first_level.txt")
+    current_level = load_level(level_name)
 
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
@@ -375,17 +426,18 @@ def game_process_main():
 
     camera = Camera()
 
-    running = True
+    close_win = LeaveGameWindow(player, level_name, username)
+
     doubled_speed = False
     pressed_move_buttons = [False, False, False, False]
-    # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
-    while running:
+
+    while close_win.running:
         clock.tick(30)
         x_pos_change = 0
         y_pos_change = 0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                close_win.show()
             if event.type == pygame.KEYDOWN:
                 check = False
                 if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -412,7 +464,7 @@ def game_process_main():
                 if event.key == pygame.K_e:
                     player.detonate_bomb()
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    close_win.running = False
                 if check:
                     player.player_is_moving = True
             if event.type == pygame.KEYUP:
@@ -450,11 +502,13 @@ def game_process_main():
         player.bomb_animation_pack.update()
         player_group.draw(screen)
         player.has_detector = True
-        player.detect(current_level, screen, key="brown")
-        # player.detect(current_level, screen)
+        ans = player.detect(current_level, screen, key="brown")
+        # в ans хранятся координаты всех точек, до центров которых дотягивается бомба
+        # если бомба не заложена, то ans == []
         pygame.display.flip()
     terminate()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
-    game_process_main()
+    game_process_main("first_level.txt", "admin")
