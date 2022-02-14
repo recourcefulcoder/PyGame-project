@@ -220,7 +220,7 @@ class ConfirmWindow(QWidget):
         with open(f"data/progress/{username}.txt", mode='w', encoding="utf-8") as infofile:
             data = {
                 "level_num": 1,
-                "checkpoint": (0, [0, 0]),
+                "checkpoint": (0, [16, 24]),
                 "has_shield": False,
                 "has_detector": False,
                 "destroyed_towers": []
