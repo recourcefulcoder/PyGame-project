@@ -369,10 +369,6 @@ class LeaveGameWindow(QWidget):
             self.current_level = 2
         else:
             self.current_level = 3
-        if not os.path.exists(f"data/progress/{self.username}"):
-            os.chdir("./data/progress")
-            os.mkdir(f"{self.username}")
-            os.chdir("../..")
         with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
             data = {
                 "level_num": self.current_level,
