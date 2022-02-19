@@ -1,5 +1,6 @@
 import sys
 import sqlite3
+import os
 import json
 from PyQt5.QtCore import QSize
 from PyQt5.QtCore import Qt
@@ -217,7 +218,12 @@ class ConfirmWindow(QWidget):
         self.close()
 
     def add_progress_info(self, username):
-        with open(f"data/progress/{username}.txt", mode='w', encoding="utf-8") as infofile:
+        os.chdir("./data/progress")
+        print(os.getcwd())
+        os.mkdir(f"{username}")
+        print(os.getcwd())
+        os.chdir("../..")
+        with open(f"data/progress/{username}/info.txt", mode='w', encoding="utf-8") as infofile:
             data = {
                 "level_num": 1,
                 "checkpoint": (0, [16, 24]),
@@ -227,6 +233,12 @@ class ConfirmWindow(QWidget):
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
+            print("this step was done. Where the hell is the file?")
+        with open(f"data/progress/{username}/map.txt", mode='w', encoding='utf-8') as mapfile:
+            with open(f"data/levels/first_level.txt", mode='r', encoding='utf-8') as fir_level:
+                map = fir_level.readlines()
+                for elem in map:
+                    mapfile.write(elem)
 
 
 if __name__ == "__main__":
