@@ -8,7 +8,6 @@ from math import floor
 from generate_level import (load_level, generate_level, terminate,
                             Camera, STEP)
 from PyQt5.QtWidgets import QWidget, QApplication
-from PyQt5.QtCore import Qt
 from PyQt5 import uic
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
@@ -357,21 +356,24 @@ class LeaveGameWindow(QWidget):
         uic.loadUi("ui_files/leave_game_win.ui", self)
         self.running = True
         self.player = player
+        self.save_level = ''
         self.current_level = current_level
-        print(self.current_level)
         self.username = username
         self.no_btn.clicked.connect(self.close)
         self.yes_btn.clicked.connect(self.close_and_safe)
 
     def close_and_safe(self):
-        print(self.current_level)
         if "first" in self.current_level:
             self.current_level = 1
         elif "sec" in self.current_level:
             self.current_level = 2
         else:
             self.current_level = 3
-        with open(f"data/progress/{self.username}.txt", mode='w', encoding="utf-8") as infofile:
+        if not os.path.exists(f"data/progress/{self.username}"):
+            os.chdir("./data/progress")
+            os.mkdir(f"{self.username}")
+            os.chdir("../..")
+        with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
             data = {
                 "level_num": self.current_level,
                 "checkpoint": self.player.current_checkpoint,
@@ -381,6 +383,10 @@ class LeaveGameWindow(QWidget):
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
+        with open(f"data/progress/{self.username}/map.txt", mode='w', encoding="utf-8") as mapfile:
+            for elem in self.save_level:
+                mapfile.write(' '.join(elem))
+                mapfile.write('\n')
         self.running = False
 
 
@@ -437,6 +443,7 @@ def game_process_main(level_name, username):
         y_pos_change = 0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                close_win.save_level = current_level
                 close_win.show()
             if event.type == pygame.KEYDOWN:
                 check = False
