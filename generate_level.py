@@ -38,8 +38,8 @@ tile_types = {'black': 'empty', 'grey': 'wall', 'brown': 'tower', 'red': 'mine',
 tile_width = tile_height = 50
 
 
-def load_level(filename):  # считывает карту из файла
-    filename = "data\levels\\" + filename
+def load_level(username):  # считывает карту из файла
+    filename = "data/progress/" + username + "/map.txt"
     with open(filename, 'r') as mapFile:
         level_map = [line.split() for line in mapFile]
     return level_map

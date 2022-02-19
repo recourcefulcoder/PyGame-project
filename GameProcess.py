@@ -351,27 +351,21 @@ class DialogWindow(pygame.Surface):
 
 
 class LeaveGameWindow(QWidget):
-    def __init__(self, player, current_level, username):
+    def __init__(self, player, level_num, username):
         super().__init__()
         uic.loadUi("ui_files/leave_game_win.ui", self)
         self.running = True
         self.player = player
+        self.level_num = level_num
         self.save_level = ''
-        self.current_level = current_level
         self.username = username
         self.no_btn.clicked.connect(self.close)
         self.yes_btn.clicked.connect(self.close_and_safe)
 
     def close_and_safe(self):
-        if "first" in self.current_level:
-            self.current_level = 1
-        elif "sec" in self.current_level:
-            self.current_level = 2
-        else:
-            self.current_level = 3
         with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
             data = {
-                "level_num": self.current_level,
+                "level_num": self.level_num,
                 "checkpoint": self.player.current_checkpoint,
                 "has_shield": self.player.has_buckler,
                 "has_detector": self.player.has_detector,
@@ -406,7 +400,7 @@ def dialog_win_main():
     terminate()
 
 
-def game_process_main(level_name, username):
+def game_process_main(username):
     sys.excepthook = except_hook
     app = QApplication(sys.argv)
     pygame.init()
@@ -416,7 +410,11 @@ def game_process_main(level_name, username):
 
     clock = pygame.time.Clock()
 
-    current_level = load_level(level_name)
+    with open(f"data/progress/{username}/info.txt", mode='r', encoding='utf-8') as info:
+        data = json.loads(info.readlines()[0])
+        current_level_num = data["level_num"]
+
+    current_level = load_level(username)
 
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
@@ -428,7 +426,7 @@ def game_process_main(level_name, username):
 
     camera = Camera()
 
-    close_win = LeaveGameWindow(player, level_name, username)
+    close_win = LeaveGameWindow(player, current_level_num, username)
 
     doubled_speed = False
     pressed_move_buttons = [False, False, False, False]
@@ -514,4 +512,4 @@ def game_process_main(level_name, username):
 
 
 if __name__ == "__main__":
-    game_process_main("first_level.txt", "admin")
+    game_process_main("admin")
