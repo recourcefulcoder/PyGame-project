@@ -46,20 +46,20 @@ def load_level(username):  # считывает карту из файла
 
 
 def generate_level(level, tiles_all_groups):  # отрисовывает поле
+    towers_dict = dict()
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == 'grey':
                 Tile('wall', x, y, 'wall', tiles_all_groups)
             elif level[y][x] == 'brown':
-                Tile('tower', x, y, 'tower', tiles_all_groups)
+                towers_dict[(y, x)] = Tile('tower', x, y, 'tower', tiles_all_groups)
             else:
                 if level[y][x] in tile_types.keys() and tile_types[level[y][x]] in tile_images:
-                    # print("true")
-                    # print(f"{level[y][x]}")
-                    # print(f"{tile_types[level[y][x]]}")
-                    Tile(tile_types[level[y][x]], x, y, tile_types[level[y][x]], tiles_all_groups)
+                    Tile(tile_types[level[y][x]], x, y, tile_types[level[y][x]],
+                         tiles_all_groups)
                 else:
                     Tile('empty', x, y, 'checkpoint', tiles_all_groups)
+    return towers_dict
 
 
 class Tile(pygame.sprite.Sprite):
@@ -68,13 +68,6 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_images[tile_image]
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
         self.type = tile_type
-
-
-class Player(pygame.sprite.Sprite):  # надо будет заменить на Гришин Player
-    def __init__(self, pos_x, pos_y):
-        super().__init__(player_group, all_sprites)
-        self.image = load_image('mario.png')
-        self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
 
 
 class Camera:

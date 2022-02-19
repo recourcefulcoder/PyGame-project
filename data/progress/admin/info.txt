@@ -1,1 +1,1 @@
-{"level_num": 1, "checkpoint": [0, [16, 24]], "has_shield": true, "has_detector": true, "destroyed_towers": []}
+{"level_num": 1, "checkpoint": [0, [16, 24]], "has_shield": true, "has_detector": false, "destroyed_towers": 1}

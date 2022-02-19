@@ -6,7 +6,7 @@ import os
 import json
 from math import floor
 from generate_level import (load_level, generate_level, terminate,
-                            Camera, STEP)
+                            Camera, STEP, tile_images)
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5 import uic
 
@@ -138,7 +138,7 @@ class BombAnimationPack:
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, binded_screen, player_group, all_sprites_group):
+    def __init__(self, username, binded_screen, player_group, all_sprites_group, tiles_all_group):
         super().__init__(player_group, all_sprites_group)
         self.current_orientation = 0
         # 0 - персонаж повёрнут лицом, 1 - левым боком, 2 - правым боком, 3 - спиной
@@ -171,7 +171,9 @@ class Player(pygame.sprite.Sprite):
         self.has_detector = False
         self.current_checkpoint = [0, [self.map_x_pos, self.map_y_pos]]
         self.detonated_mines = []
-        self.destroyed_towers = []  # здесь будет список из координат уничтоженных вышек
+        self.destroyed_towers = 0  # здесь - число уничтоженных вышек
+        self.current_level = load_level(f"{username}")
+        self.towers = generate_level(self.current_level, tiles_all_group)
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -210,6 +212,15 @@ class Player(pygame.sprite.Sprite):
             if bomb_distance <= self.detonate_zone:
                 self.bomb_planted = False
                 self.bomb_animation_pack.exp_row_cnt += 1
+                ans = self.exploded_cells()
+                print(ans)
+                for elem in ans:
+                    if self.current_level[elem[0]][elem[1]] == 'brown':
+                        print("OH, YOU HAVE DEFEATED TOWER!")
+                        self.current_level[elem[0]][elem[1]] = "green"
+                        print(self.towers)
+                        self.towers[(elem[0], elem[1])].image = tile_images["ruins"]
+                        self.destroyed_towers += 1
             if bomb_distance <= self.attack_zone:
                 print("you're dead!")
 
@@ -238,32 +249,34 @@ class Player(pygame.sprite.Sprite):
             else:
                 pass  # смерть
 
-    def detect(self, map, screen, key='red'):
+    def detect_mine(self, map, screen):
         # ищет и подсвечиает мины вокруг игрока
         y, x = count_player_coords_p(self)
         screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
-        if key == 'red':
-            pygame.draw.circle(screen, (255, 255, 255),
-                               (screen_x, screen_y), 75, 3)
-            for elem in steps:
-                if map[x + elem[0]][y + elem[1]] == 'red':
-                    pygame.draw.circle(screen, (255, 0, 0),
-                                       (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
-        elif key == 'brown':
-            steps.append((0, 0))
-            if self.bomb_planted:
-                ans = list()
-                for point in steps:
-                    ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
-                    dist = ((abs(self.bomb_pos[0]) + self.image_width // 2 - ppos[0]) ** 2 + (
-                            abs(self.bomb_pos[1]) + self.image_height - ppos[1]) ** 2) ** 0.5
-                    # оказывается, bomb_pos хранит координаты левого верхнего угла изображения игрока
-                    # в момент закладки бомбы, а не её технические координаты на карте
-                    if dist <= self.attack_zone and not (x + point[0] < 0 or y + point[1] < 0):
-                        ans.append([x + point[0], y + point[1]])
-                return ans
-            return list()
+        pygame.draw.circle(screen, (255, 255, 255),
+                           (screen_x, screen_y), 75, 3)
+        for elem in steps:
+            if map[x + elem[0]][y + elem[1]] == 'red':
+                pygame.draw.circle(screen, (255, 0, 0),
+                                   (screen_x + 50 * elem[0], screen_y + 50 * elem[1]), 12.5)
+
+    def exploded_cells(self):
+        steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (0, 0)]
+        ans = list()
+        x, y = count_player_coords_p(self)
+        print(f"({x}, {y})")
+        print(self.bomb_pos, "BOMB POS")
+        for point in steps:
+            ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
+            dist = ((abs(self.bomb_pos[0]) + self.image_width // 2 - ppos[0]) ** 2 + (
+                    abs(self.bomb_pos[1]) + self.image_height - ppos[1]) ** 2) ** 0.5
+            print(f"{dist} IS DIST FOR PPOS {ppos} WHICH IS ({x + point[0]}, {y + point[1]})")
+            # оказывается, bomb_pos хранит координаты левого верхнего угла изображения игрока
+            # в момент закладки бомбы, а не её технические координаты на карте
+            if dist <= self.attack_zone and not (x + point[0] < 0 or y + point[1] < 0):
+                ans.append([y + point[1], x + point[0]])
+        return ans
 
 
 class DialogWindow(pygame.Surface):
@@ -414,15 +427,12 @@ def game_process_main(username):
         data = json.loads(info.readlines()[0])
         current_level_num = data["level_num"]
 
-    current_level = load_level(username)
-
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
     tiles_all_group = [tiles_group, all_sprites_group]
-    generate_level(current_level, tiles_all_group)
 
     player_group = pygame.sprite.Group()
-    player = Player(screen, player_group, all_sprites_group)
+    player = Player(username, screen, player_group, all_sprites_group, tiles_all_group)
 
     camera = Camera()
 
@@ -437,7 +447,7 @@ def game_process_main(username):
         y_pos_change = 0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                close_win.save_level = current_level
+                close_win.save_level = player.current_level
                 close_win.show()
             if event.type == pygame.KEYDOWN:
                 check = False
@@ -495,17 +505,14 @@ def game_process_main(username):
         x_pos_change += speed * pressed_move_buttons[2]
         x_pos_change -= speed * pressed_move_buttons[1]
         screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-        player.move([x_pos_change, y_pos_change], current_level)
+        player.move([x_pos_change, y_pos_change], player.current_level)
         camera.update(player)
-        player.check_position(current_level)
+        player.check_position(player.current_level)
         camera.apply(all_sprites_group)
         tiles_group.draw(screen)
         player.bomb_animation_pack.update()
         player_group.draw(screen)
-        player.has_detector = True
-        ans = player.detect(current_level, screen, key="brown")
-        # в ans хранятся координаты всех точек, до центров которых дотягивается бомба
-        # если бомба не заложена, то ans == []
+
         pygame.display.flip()
     terminate()
     sys.exit(app.exec())
