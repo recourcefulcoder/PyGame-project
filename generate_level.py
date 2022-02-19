@@ -31,9 +31,9 @@ def load_image(name, color_key=-1):  # загружает изображения
 
 
 tile_images = {'wall': load_image('wall.png'), 'empty': load_image('empty.png'),
-               'tower': load_image('tower.png')}  # словарь с изображениями тайлов
+               'tower': load_image('tower.png'), 'ruins': load_image('ruins.png')}  # словарь с изображениями тайлов
 tile_types = {'black': 'empty', 'grey': 'wall', 'brown': 'tower', 'red': 'mine', 'blue': 'detector', 'white': 'shield',
-              'golden': 'evacuation point'}  # словарь соответствия цвета и типа тайла
+              'golden': 'evacuation point', 'green': 'ruins'}  # словарь соответствия цвета и типа тайла
 
 tile_width = tile_height = 50
 
@@ -53,8 +53,11 @@ def generate_level(level, tiles_all_groups):  # отрисовывает пол�
             elif level[y][x] == 'brown':
                 Tile('tower', x, y, 'tower', tiles_all_groups)
             else:
-                if level[y][x] in tile_types.keys():
-                    Tile('empty', x, y, tile_types[level[y][x]], tiles_all_groups)
+                if level[y][x] in tile_types.keys() and tile_types[level[y][x]] in tile_images:
+                    # print("true")
+                    # print(f"{level[y][x]}")
+                    # print(f"{tile_types[level[y][x]]}")
+                    Tile(tile_types[level[y][x]], x, y, tile_types[level[y][x]], tiles_all_groups)
                 else:
                     Tile('empty', x, y, 'checkpoint', tiles_all_groups)
 
