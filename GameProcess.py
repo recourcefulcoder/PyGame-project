@@ -6,6 +6,9 @@ import os
 from math import floor
 from generate_level import (load_level, generate_level, terminate,
                             Camera, STEP)
+from BucklerScreen import buckler_screen
+from DetectorScreen import detector_screen
+
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
@@ -217,12 +220,19 @@ class Player(pygame.sprite.Sprite):
                             self.image_width, self.image_height))
 
     def check_position(self, map):
+        global running
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
         current_cell = map[x][y]
         if current_cell == 'white':
+            if not self.has_buckler:
+                for _ in range(1000):
+                    buckler_screen()
             self.has_buckler = True
         if current_cell == 'blue':
+            if not self.has_detector:
+                for _ in range(1000):
+                    detector_screen()
             self.has_detector = True
         if len(current_cell) == 1:
             if int(current_cell) > self.current_checkpoint[0]:
@@ -384,6 +394,7 @@ def game_process_main():
     pressed_move_buttons = [False, False, False, False]
     # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
     while running:
+        pygame.display.set_caption("Loop")
         clock.tick(30)
         x_pos_change = 0
         y_pos_change = 0
