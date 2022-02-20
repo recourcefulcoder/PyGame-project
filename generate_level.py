@@ -78,8 +78,8 @@ class Camera:
     def update(self, player):  # корректирует сдвиг камеры
         self.dx = -(player.rect.x - WIDTH / 2)
         self.dy = -(player.rect.y - HEIGHT / 2)
-        player.x_indent += self.dx
-        player.y_indent += self.dy
+        player.bomb_animation_pack.x_indent += self.dx
+        player.bomb_animation_pack.y_indent += self.dy
 
     def apply(self, all_sprites):  # сдвигает объекты
         for obj in all_sprites:
@@ -90,49 +90,3 @@ class Camera:
 def terminate():
     pygame.quit()
     sys.exit()
-
-
-def generate_level_main():
-    pygame.init()
-    map = load_level("map.txt")
-    print(*map)
-    player = Player(0, 0)
-    generate_level(map, [tiles_group, all_sprites])  # map для примера
-    camera = Camera()
-
-    running = True
-
-    while running:
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    player.rect.x -= STEP
-                if event.key == pygame.K_RIGHT:
-                    player.rect.x += STEP
-                if event.key == pygame.K_UP:
-                    player.rect.y -= STEP
-                if event.key == pygame.K_DOWN:
-                    player.rect.y += STEP
-                if event.key == pygame.K_ESCAPE:
-                    terminate()
-
-        camera.update(player)
-
-        camera.apply(all_sprites)
-
-        screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-        tiles_group.draw(screen)
-        player_group.draw(screen)
-
-        pygame.display.flip()
-
-        clock.tick(50)
-
-    terminate()
-
-
-if __name__ == "__main__":
-    generate_level_main()

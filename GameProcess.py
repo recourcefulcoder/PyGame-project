@@ -80,6 +80,9 @@ class BombAnimationPack:
         self.exp_col_cnt = -1
         self.exp_row_cnt = -2
 
+        self.x_indent = -300
+        self.y_indent = -300
+
     def update(self):
         value = self.clock.tick()
         self.update_progress_bar(value)
@@ -98,8 +101,8 @@ class BombAnimationPack:
         if self.time_gone + value >= self.time_period * 1000:
             self.player.bomb_planted = True
             self.current_exp_image.rect = pygame.Rect(
-                self.player.bomb_pos[0] + abs(self.player.x_indent) + 300 - 50 + self.player.image_width // 2,
-                self.player.bomb_pos[1] + abs(self.player.y_indent) + 300 - 50 + self.player.image_height, 100, 100)
+                self.player.bomb_pos[0] + abs(self.x_indent) + 300 - 50 + self.player.image_width // 2,
+                self.player.bomb_pos[1] + abs(self.y_indent) + 300 - 50 + self.player.image_height, 100, 100)
             self.kill_process_bar()
 
     def update_bomb_borders(self):
@@ -115,8 +118,8 @@ class BombAnimationPack:
             pygame.draw.circle(self.alpha_screen, (219, 137, 0), center, self.player.detonate_zone)
             pygame.draw.circle(self.alpha_screen, (255, 0, 0), center, self.player.attack_zone)
             self.player.screen.blit(self.alpha_screen,
-                                    (self.player.x_indent - self.player.bomb_pos[0],
-                                     self.player.y_indent - self.player.bomb_pos[1]))
+                                    (self.x_indent - self.player.bomb_pos[0],
+                                     self.y_indent - self.player.bomb_pos[1]))
 
     def animate_explosion(self):
         if self.exp_row_cnt == -2:
@@ -164,8 +167,6 @@ class Player(pygame.sprite.Sprite):
         self.bomb_planted = False
         self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
         self.bomb_pos = [None, None]
-        self.x_indent = -300
-        self.y_indent = -300
 
         self.has_buckler = False
         self.has_detector = False
@@ -174,6 +175,7 @@ class Player(pygame.sprite.Sprite):
         self.destroyed_towers = 0  # здесь - число уничтоженных вышек
         self.current_level = load_level(f"{username}")
         self.towers = generate_level(self.current_level, tiles_all_group)
+        print(self.towers)
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -200,25 +202,22 @@ class Player(pygame.sprite.Sprite):
 
     def plant_bomb(self):
         if not self.bomb_planted:
-            self.bomb_pos = [self.x_indent,
-                             self.y_indent]
+            self.bomb_pos = [self.bomb_animation_pack.x_indent,
+                             self.bomb_animation_pack.y_indent]
             self.can_move = False
             self.bomb_animation_pack.process_dead = False
 
     def detonate_bomb(self):
         if self.bomb_planted:
-            bomb_distance = ((self.x_indent - self.bomb_pos[0]) ** 2 + (
-                    self.y_indent - self.bomb_pos[1]) ** 2) ** 0.5
+            bomb_distance = ((self.bomb_animation_pack.x_indent - self.bomb_pos[0]) ** 2 + (
+                    self.bomb_animation_pack.y_indent - self.bomb_pos[1]) ** 2) ** 0.5
             if bomb_distance <= self.detonate_zone:
                 self.bomb_planted = False
                 self.bomb_animation_pack.exp_row_cnt += 1
                 ans = self.exploded_cells()
-                print(ans)
                 for elem in ans:
                     if self.current_level[elem[0]][elem[1]] == 'brown':
-                        print("OH, YOU HAVE DEFEATED TOWER!")
                         self.current_level[elem[0]][elem[1]] = "green"
-                        print(self.towers)
                         self.towers[(elem[0], elem[1])].image = tile_images["ruins"]
                         self.destroyed_towers += 1
             if bomb_distance <= self.attack_zone:
@@ -264,14 +263,12 @@ class Player(pygame.sprite.Sprite):
     def exploded_cells(self):
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (0, 0)]
         ans = list()
-        x, y = count_player_coords_p(self)
-        print(f"({x}, {y})")
-        print(self.bomb_pos, "BOMB POS")
+        x = int(abs(self.bomb_pos[0]) // STEP)
+        y = int(abs(self.bomb_pos[1]) // STEP)
         for point in steps:
             ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
             dist = ((abs(self.bomb_pos[0]) + self.image_width // 2 - ppos[0]) ** 2 + (
                     abs(self.bomb_pos[1]) + self.image_height - ppos[1]) ** 2) ** 0.5
-            print(f"{dist} IS DIST FOR PPOS {ppos} WHICH IS ({x + point[0]}, {y + point[1]})")
             # оказывается, bomb_pos хранит координаты левого верхнего угла изображения игрока
             # в момент закладки бомбы, а не её технические координаты на карте
             if dist <= self.attack_zone and not (x + point[0] < 0 or y + point[1] < 0):
