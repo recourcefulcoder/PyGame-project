@@ -219,9 +219,7 @@ class ConfirmWindow(QWidget):
 
     def add_progress_info(self, username):
         os.chdir("./data/progress")
-        print(os.getcwd())
         os.mkdir(f"{username}")
-        print(os.getcwd())
         os.chdir("../..")
         with open(f"data/progress/{username}/info.txt", mode='w', encoding="utf-8") as infofile:
             data = {
@@ -229,11 +227,10 @@ class ConfirmWindow(QWidget):
                 "checkpoint": (0, [16, 24]),
                 "has_shield": False,
                 "has_detector": False,
-                "destroyed_towers": []
+                "destroyed_towers": 0
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
-            print("this step was done. Where the hell is the file?")
         with open(f"data/progress/{username}/map.txt", mode='w', encoding='utf-8') as mapfile:
             with open(f"data/levels/first_level.txt", mode='r', encoding='utf-8') as fir_level:
                 map = fir_level.readlines()
