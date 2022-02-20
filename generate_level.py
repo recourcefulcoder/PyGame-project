@@ -31,7 +31,8 @@ def load_image(name, color_key=-1):  # загружает изображения
 
 
 tile_images = {'wall': load_image('wall.png'), 'empty': load_image('empty.png'),
-               'tower': load_image('tower.png'), 'ruins': load_image('ruins.png')}  # словарь с изображениями тайлов
+               'tower': load_image('tower.png'), 'ruins': load_image('ruins.png'),
+               "evacuation point": load_image('escape.png')}  # словарь с изображениями тайлов
 tile_types = {'black': 'empty', 'grey': 'wall', 'brown': 'tower', 'red': 'mine', 'blue': 'detector', 'white': 'shield',
               'golden': 'evacuation point', 'green': 'ruins'}  # словарь соответствия цвета и типа тайла
 

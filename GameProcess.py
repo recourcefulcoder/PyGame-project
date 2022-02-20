@@ -12,6 +12,10 @@ from PyQt5 import uic
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
+screen_type = 'game'  # другой вариант - dialog. В соответствии с этим значением
+
+
+# в цикл обрабатывается то или иное действие.
 
 
 def except_hook(cls, traceback, exception):
@@ -275,6 +279,11 @@ class Player(pygame.sprite.Sprite):
                 ans.append([y + point[1], x + point[0]])
         return ans
 
+    def finished(self):
+        x, y = count_player_coords_p(self)
+        print(self.current_level[y][x], self.destroyed_towers)
+        return self.current_level[y][x] == 'golden' and self.destroyed_towers >= 3
+
 
 class DialogWindow(pygame.Surface):
     def __init__(self, binded_screen, dialog_name):
@@ -390,12 +399,11 @@ class LeaveGameWindow(QWidget):
         self.running = False
 
 
-def dialog_win_main():
-    pygame.init()
+def dialog_win_main(dialogname, screen, username):
+    global screen_type
     pygame.time.set_timer(CHANGE_SPRITE, 200)
-    pygame.display.set_caption("Loop")
-    screen = pygame.display.set_mode(SIZE)
-    win = DialogWindow(screen, "quick start to plot.txt")
+    pygame.display.set_caption("Bomber")
+    win = DialogWindow(screen, dialogname)
     running = True
     while running:
         screen.blit(win, (0, 0))
@@ -407,15 +415,16 @@ def dialog_win_main():
                 if event.key == pygame.K_ESCAPE:
                     running = False
         pygame.display.flip()
-    terminate()
+    screen_type = "game"
 
 
 def game_process_main(username):
+    global screen_type
     sys.excepthook = except_hook
     app = QApplication(sys.argv)
     pygame.init()
     pygame.time.set_timer(CHANGE_SPRITE, 200)
-    pygame.display.set_caption("Loop")
+    pygame.display.set_caption("Bomber")
     screen = pygame.display.set_mode(SIZE)
 
     clock = pygame.time.Clock()
@@ -439,78 +448,82 @@ def game_process_main(username):
     pressed_move_buttons = [False, False, False, False]
 
     while close_win.running:
-        clock.tick(30)
-        x_pos_change = 0
-        y_pos_change = 0
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                close_win.save_level = player.current_level
-                close_win.show()
-            if event.type == pygame.KEYDOWN:
-                check = False
-                if event.key == pygame.K_UP or event.key == pygame.K_w:
-                    check = True
-                    pressed_move_buttons[3] = True
-                    player.current_orientation = 3
-                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    check = True
-                    pressed_move_buttons[0] = True
-                    player.current_orientation = 0
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    check = True
-                    pressed_move_buttons[2] = True
-                    player.current_orientation = 2
-                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    check = True
-                    pressed_move_buttons[1] = True
-                    player.current_orientation = 1
-                if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
-                    pygame.time.set_timer(CHANGE_SPRITE, 100)
-                    doubled_speed = True
-                if event.key == pygame.K_r:
-                    player.plant_bomb()
-                if event.key == pygame.K_e:
-                    player.detonate_bomb()
-                if event.key == pygame.K_ESCAPE:
-                    close_win.running = False
-                if check:
-                    player.player_is_moving = True
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_UP or event.key == pygame.K_w:
-                    pressed_move_buttons[3] = False
-                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    pressed_move_buttons[0] = False
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    pressed_move_buttons[2] = False
-                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    pressed_move_buttons[1] = False
-                if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
-                    pygame.time.set_timer(CHANGE_SPRITE, 200)
-                    doubled_speed = False
-                if event.key == pygame.K_r:
-                    player.bomb_animation_pack.kill_process_bar()
-                if True not in pressed_move_buttons:
-                    player.player_is_moving = False
-                for ind in range(3, -1, -1):
-                    if pressed_move_buttons[ind]:
-                        player.current_orientation = ind
-            if event.type == CHANGE_SPRITE:
-                player.change_picture()
-        speed = 2 * (1 + doubled_speed)
-        y_pos_change -= speed * pressed_move_buttons[3]
-        y_pos_change += speed * pressed_move_buttons[0]
-        x_pos_change += speed * pressed_move_buttons[2]
-        x_pos_change -= speed * pressed_move_buttons[1]
-        screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-        player.move([x_pos_change, y_pos_change], player.current_level)
-        camera.update(player)
-        player.check_position(player.current_level)
-        camera.apply(all_sprites_group)
-        tiles_group.draw(screen)
-        player.bomb_animation_pack.update()
-        player_group.draw(screen)
-
-        pygame.display.flip()
+        if screen_type == 'game':
+            clock.tick(30)
+            x_pos_change = 0
+            y_pos_change = 0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    close_win.save_level = player.current_level
+                    close_win.show()
+                if event.type == pygame.KEYDOWN:
+                    check = False
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        check = True
+                        pressed_move_buttons[3] = True
+                        player.current_orientation = 3
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        check = True
+                        pressed_move_buttons[0] = True
+                        player.current_orientation = 0
+                    if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                        check = True
+                        pressed_move_buttons[2] = True
+                        player.current_orientation = 2
+                    if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                        check = True
+                        pressed_move_buttons[1] = True
+                        player.current_orientation = 1
+                    if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
+                        pygame.time.set_timer(CHANGE_SPRITE, 100)
+                        doubled_speed = True
+                    if event.key == pygame.K_r:
+                        player.plant_bomb()
+                    if event.key == pygame.K_e:
+                        player.detonate_bomb()
+                    if event.key == pygame.K_ESCAPE:
+                        close_win.running = False
+                    if check:
+                        player.player_is_moving = True
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        pressed_move_buttons[3] = False
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        pressed_move_buttons[0] = False
+                    if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                        pressed_move_buttons[2] = False
+                    if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                        pressed_move_buttons[1] = False
+                    if event.key == pygame.K_RSHIFT or event.key == pygame.K_LSHIFT:
+                        pygame.time.set_timer(CHANGE_SPRITE, 200)
+                        doubled_speed = False
+                    if event.key == pygame.K_r:
+                        player.bomb_animation_pack.kill_process_bar()
+                    if True not in pressed_move_buttons:
+                        player.player_is_moving = False
+                    for ind in range(3, -1, -1):
+                        if pressed_move_buttons[ind]:
+                            player.current_orientation = ind
+                if event.type == CHANGE_SPRITE:
+                    player.change_picture()
+            speed = 2 * (1 + doubled_speed)
+            y_pos_change -= speed * pressed_move_buttons[3]
+            y_pos_change += speed * pressed_move_buttons[0]
+            x_pos_change += speed * pressed_move_buttons[2]
+            x_pos_change -= speed * pressed_move_buttons[1]
+            screen.blit(load_image('map_bg_image.jpg'), (0, 0))
+            player.move([x_pos_change, y_pos_change], player.current_level)
+            camera.update(player)
+            player.check_position(player.current_level)
+            camera.apply(all_sprites_group)
+            tiles_group.draw(screen)
+            player.bomb_animation_pack.update()
+            player_group.draw(screen)
+            if player.finished():
+                print("finished?")
+                screen_type = 'dialog'
+                dialog_win_main("change_level", screen, username)
+            pygame.display.flip()
     terminate()
     sys.exit(app.exec())
 
