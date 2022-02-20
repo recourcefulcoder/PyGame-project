@@ -15,7 +15,7 @@ SIZE = WIDTH, HEIGHT = 800, 600
 screen_type = 'game'  # другой вариант - dialog. В соответствии с этим значением
 
 
-# в цикл обрабатывается то или иное действие.
+# в цикле функции game_process_main обрабатывается то или иное действие.
 
 
 def except_hook(cls, traceback, exception):
@@ -61,6 +61,31 @@ def count_player_coords_c(x, y):
 def draw_icon(screen, image_name, pose):
     image = load_image(image_name, -1)
     screen.blit(image, pose)
+
+
+def change_level(player, tiles_all_group):
+    with open(f"data/progress/{player.username}/info.txt", mode='w', encoding='utf-8') as infofile:
+        data = {
+            "level_num": (player.level_num + 1) % 4 + (player.level_num == 3),
+            "checkpoint": (0, [16, 24]),
+            "has_shield": False,
+            "has_detector": False,
+            "destroyed_towers": 0
+        }
+        writedata = json.dumps(data)
+        infofile.write(writedata)
+    if player.level_num == 1:
+        num = "second"
+    elif player.level_num == 2:
+        num = "third"
+    else:
+        num = "first"
+    with open(f"data/progress/{player.username}/map.txt", mode='w') as mapfile:
+        with open(f"data/levels/{num}_level.txt", mode='r') as sample:
+            map = sample.readlines()
+            for elem in map:
+                mapfile.write(elem)
+    player.init_default(tiles_all_group)
 
 
 class BombAnimationPack:
@@ -147,6 +172,12 @@ class BombAnimationPack:
 class Player(pygame.sprite.Sprite):
     def __init__(self, username, binded_screen, player_group, all_sprites_group, tiles_all_group):
         super().__init__(player_group, all_sprites_group)
+        self.screen = binded_screen
+        self.username = username
+        self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
+        self.init_default(tiles_all_group)
+
+    def init_default(self, tiles_all_group):
         self.current_orientation = 0
         # 0 - персонаж повёрнут лицом, 1 - левым боком, 2 - правым боком, 3 - спиной
         self.last_animation_step = 0
@@ -163,23 +194,32 @@ class Player(pygame.sprite.Sprite):
         self.map_y_pos = self.image_height // 2  # угла карты центра изображения персонажа
 
         self.clock = pygame.time.Clock()
-        self.screen = binded_screen
         self.camera = Camera()
 
         self.detonate_zone = 200
         self.attack_zone = 50
         self.bomb_planted = False
-        self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
+        self.bomb_animation_pack.x_indent = -300
+        self.bomb_animation_pack.y_indent = -300
         self.bomb_pos = [None, None]
 
-        self.has_buckler = False
-        self.has_detector = False
         self.current_checkpoint = [0, [self.map_x_pos, self.map_y_pos]]
         self.detonated_mines = []
-        self.destroyed_towers = 0  # здесь - число уничтоженных вышек
-        self.current_level = load_level(f"{username}")
+
+        with open(f"data/progress/{self.username}/info.txt") as infofile:
+            data = json.loads(infofile.readlines()[0])
+            self.destroyed_towers = data["destroyed_towers"]  # здесь - число уничтоженных вышек
+            self.level_num = data["level_num"]
+            self.has_buckler = data["has_shield"]
+            self.has_detector = data["has_detector"]
+
+        self.current_level = load_level(f"{self.username}")
+
+        for item in tiles_all_group[0]:
+            # в нулевом элементе должна (!) находится группа, состоящая только из клеток поля
+            item.kill()
+
         self.towers = generate_level(self.current_level, tiles_all_group)
-        print(self.towers)
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -281,7 +321,6 @@ class Player(pygame.sprite.Sprite):
 
     def finished(self):
         x, y = count_player_coords_p(self)
-        print(self.current_level[y][x], self.destroyed_towers)
         return self.current_level[y][x] == 'golden' and self.destroyed_towers >= 3
 
 
@@ -399,7 +438,7 @@ class LeaveGameWindow(QWidget):
         self.running = False
 
 
-def dialog_win_main(dialogname, screen, username):
+def dialog_win(dialogname, screen):
     global screen_type
     pygame.time.set_timer(CHANGE_SPRITE, 200)
     pygame.display.set_caption("Bomber")
@@ -520,9 +559,15 @@ def game_process_main(username):
             player.bomb_animation_pack.update()
             player_group.draw(screen)
             if player.finished():
-                print("finished?")
                 screen_type = 'dialog'
-                dialog_win_main("change_level", screen, username)
+                pressed_move_buttons = [False, False, False, False]
+                change_level(player, tiles_all_group)
+                if player.level_num == 2:
+                    dialog_win("turn to second level.txt", screen)
+                elif player.level_num == 3:
+                    dialog_win("turn to third level.txt", screen)
+                else:
+                    dialog_win("finish game.txt", screen)
             pygame.display.flip()
     terminate()
     sys.exit(app.exec())
