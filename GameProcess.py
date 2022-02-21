@@ -9,7 +9,6 @@ from generate_level import (load_level, generate_level, terminate,
 from BucklerScreen import buckler_screen
 from DetectorScreen import detector_screen
 
-
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
 
@@ -55,7 +54,6 @@ def draw_icon(screen, image_name, pose):
     screen.blit(image, pose)
 
 
-
 class BombAnimationPack:
     def __init__(self, player, time_period, all_sprite_group):
         self.time_gone = 0
@@ -67,15 +65,15 @@ class BombAnimationPack:
         self.alpha_screen = pygame.Surface(SIZE)
         self.alpha_screen.set_alpha(100)
         self.alpha_screen.set_colorkey((0, 0, 0))
-        self.x_indent = -300
-        self.y_indent = -300
+        self.x_indent = -WIDTH // 2
+        self.y_indent = -HEIGHT // 2
 
         self.player = player
 
         self.explosion_image = load_image("explosion.png")
         self.exp_image_group = pygame.sprite.Group()
         self.current_exp_image = pygame.sprite.Sprite(self.exp_image_group, all_sprite_group)
-        self.current_exp_image.rect = pygame.Rect(300, 300, 100, 100)
+        self.current_exp_image.rect = pygame.Rect(WIDTH // 2, HEIGHT // 2, 100, 100)
         self.exp_col_cnt = -1
         self.exp_row_cnt = -2
 
@@ -97,13 +95,13 @@ class BombAnimationPack:
         if self.time_gone + value >= self.time_period * 1000:
             self.player.bomb_planted = True
             self.current_exp_image.rect = pygame.Rect(
-                self.player.bomb_pos[0] + abs(self.x_indent) + 300 - 50 + self.player.image_width // 2,
-                self.player.bomb_pos[1] + abs(self.y_indent) + 300 - 50 + self.player.image_height, 100, 100)
+                self.player.bomb_pos[0] + abs(self.x_indent) + WIDTH // 2 - 50 + self.player.image_width // 2,
+                self.player.bomb_pos[1] + abs(self.y_indent) + HEIGHT // 2 - 50 + self.player.image_height, 100, 100)
             self.kill_process_bar()
 
     def update_bomb_borders(self):
         self.alpha_screen.fill((0, 0, 0))
-        center = [300 + self.player.image_width // 2, 300 + self.player.image_height]
+        center = [WIDTH // 2 + self.player.image_width // 2, HEIGHT // 2 + self.player.image_height]
         if not self.process_dead:
             pygame.draw.circle(self.alpha_screen, (219, 137, 0), center,
                                self.time_gone / (self.time_period * 1000) * self.player.detonate_zone)
