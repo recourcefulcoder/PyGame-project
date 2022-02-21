@@ -31,32 +31,36 @@ def load_image(name, color_key=-1):  # загружает изображения
 
 
 tile_images = {'wall': load_image('wall.png'), 'empty': load_image('empty.png'),
-               'tower': load_image('tower.png')}  # словарь с изображениями тайлов
+               'tower': load_image('tower.png'), 'ruins': load_image('ruins.png'),
+               "evacuation point": load_image('escape.png')}  # словарь с изображениями тайлов
 tile_types = {'black': 'empty', 'grey': 'wall', 'brown': 'tower', 'red': 'mine', 'blue': 'detector', 'white': 'shield',
-              'golden': 'evacuation point'}  # словарь соответствия цвета и типа тайла
+              'golden': 'evacuation point', 'green': 'ruins'}  # словарь соответствия цвета и типа тайла
 
 tile_width = tile_height = 50
 
 
-def load_level(filename):  # считывает карту из файла
-    filename = "data\levels\\" + filename
+def load_level(username):  # считывает карту из файла
+    filename = "data/progress/" + username + "/map.txt"
     with open(filename, 'r') as mapFile:
         level_map = [line.split() for line in mapFile]
     return level_map
 
 
 def generate_level(level, tiles_all_groups):  # отрисовывает поле
+    towers_dict = dict()
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == 'grey':
                 Tile('wall', x, y, 'wall', tiles_all_groups)
             elif level[y][x] == 'brown':
-                Tile('tower', x, y, 'tower', tiles_all_groups)
+                towers_dict[(y, x)] = Tile('tower', x, y, 'tower', tiles_all_groups)
             else:
-                if level[y][x] in tile_types.keys():
-                    Tile('empty', x, y, tile_types[level[y][x]], tiles_all_groups)
+                if level[y][x] in tile_types.keys() and tile_types[level[y][x]] in tile_images:
+                    Tile(tile_types[level[y][x]], x, y, tile_types[level[y][x]],
+                         tiles_all_groups)
                 else:
                     Tile('empty', x, y, 'checkpoint', tiles_all_groups)
+    return towers_dict
 
 
 class Tile(pygame.sprite.Sprite):
@@ -65,13 +69,6 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_images[tile_image]
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
         self.type = tile_type
-
-
-class Player(pygame.sprite.Sprite):  # надо будет заменить на Гришин Player
-    def __init__(self, pos_x, pos_y):
-        super().__init__(player_group, all_sprites)
-        self.image = load_image('mario.png')
-        self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
 
 
 class Camera:
@@ -94,49 +91,3 @@ class Camera:
 def terminate():
     pygame.quit()
     sys.exit()
-
-
-def generate_level_main():
-    pygame.init()
-    map = load_level("map.txt")
-    print(*map)
-    player = Player(0, 0)
-    generate_level(map, [tiles_group, all_sprites])  # map для примера
-    camera = Camera()
-
-    running = True
-
-    while running:
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    player.rect.x -= STEP
-                if event.key == pygame.K_RIGHT:
-                    player.rect.x += STEP
-                if event.key == pygame.K_UP:
-                    player.rect.y -= STEP
-                if event.key == pygame.K_DOWN:
-                    player.rect.y += STEP
-                if event.key == pygame.K_ESCAPE:
-                    terminate()
-
-        camera.update(player)
-
-        camera.apply(all_sprites)
-
-        screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-        tiles_group.draw(screen)
-        player_group.draw(screen)
-
-        pygame.display.flip()
-
-        clock.tick(50)
-
-    terminate()
-
-
-if __name__ == "__main__":
-    generate_level_main()

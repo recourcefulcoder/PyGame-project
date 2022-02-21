@@ -1,3 +1,3 @@
-import pygame
+from GameProcess import game_process_main
 
-pygame.display.init()
+game_process_main("admin")
