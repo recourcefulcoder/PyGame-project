@@ -72,7 +72,7 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Camera:
-    def __init__(self):
+    def __init__(self, player):
         self.dx = 0
         self.dy = 0
 

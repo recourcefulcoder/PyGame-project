@@ -191,18 +191,17 @@ class Player(pygame.sprite.Sprite):
         self.image = self.full_image.subsurface(
             pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
         self.rect = self.image.get_rect()
-        self.map_x_pos = self.image_width // 2  # Здесь находятся координаты относительно левого верхнего
-        self.map_y_pos = self.image_height // 2  # угла карты центра изображения персонажа
 
         self.clock = pygame.time.Clock()
-        self.screen = binded_screen
-        self.camera = Camera()
+
+        # self.map_x_pos = self.image_width // 2  # Здесь находятся координаты относительно левого верхнего
+        # self.map_y_pos = self.image_height // 2  # угла карты центра изображения персонажа
 
         self.detonate_zone = 200
         self.attack_zone = 50
         self.bomb_planted = False
-        self.bomb_animation_pack.x_indent = -300
-        self.bomb_animation_pack.y_indent = -300
+        self.bomb_animation_pack.x_indent = -WIDTH // 2
+        self.bomb_animation_pack.y_indent = -HEIGHT // 2
         self.bomb_pos = [None, None]
 
         self.detonated_mines = []
@@ -214,6 +213,11 @@ class Player(pygame.sprite.Sprite):
             self.has_buckler = data["has_shield"]
             self.has_detector = data["has_detector"]
             self.current_checkpoint = data["checkpoint"]
+            self.level_num = data["level_num"]
+            self.map_x_pos = self.current_checkpoint[1][0]  # Здесь находятся координаты относительно левого верхнего
+            self.map_y_pos = self.current_checkpoint[1][1]  # угла карты центра изображения персонажа
+            self.rect.x = self.map_x_pos - self.image_width // 2
+            self.rect.y = self.map_y_pos - self.image_height // 2
 
         self.current_level = load_level(f"{self.username}")
 
@@ -299,6 +303,7 @@ class Player(pygame.sprite.Sprite):
             if int(current_cell) > self.current_checkpoint[0]:
                 self.current_checkpoint[0] = int(current_cell)
                 self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
+                self.save_progress()
         if current_cell == 'red' and (x, y) not in self.detonated_mines:
             if self.has_buckler:
                 self.detonated_mines.append((x, y))
@@ -343,6 +348,22 @@ class Player(pygame.sprite.Sprite):
     def finished(self):
         x, y = count_player_coords_p(self)
         return self.current_level[y][x] == 'golden' and self.destroyed_towers >= 3
+
+    def save_progress(self):
+        with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
+            data = {
+                "level_num": self.level_num,
+                "checkpoint": self.current_checkpoint,
+                "has_shield": self.has_buckler,
+                "has_detector": self.has_detector,
+                "destroyed_towers": self.destroyed_towers
+            }
+            writedata = json.dumps(data)
+            infofile.write(writedata)
+        with open(f"data/progress/{self.username}/map.txt", mode='w', encoding="utf-8") as mapfile:
+            for elem in self.current_level:
+                mapfile.write(' '.join(elem))
+                mapfile.write('\n')
 
 
 class DialogWindow(pygame.Surface):
@@ -439,24 +460,11 @@ class LeaveGameWindow(QWidget):
         self.save_level = ''
         self.username = username
         self.no_btn.clicked.connect(self.close)
-        self.yes_btn.clicked.connect(self.close_and_safe)
+        self.yes_btn.clicked.connect(self.close_game)
 
-    def close_and_safe(self):
-        with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
-            data = {
-                "level_num": self.level_num,
-                "checkpoint": self.player.current_checkpoint,
-                "has_shield": self.player.has_buckler,
-                "has_detector": self.player.has_detector,
-                "destroyed_towers": self.player.destroyed_towers
-            }
-            writedata = json.dumps(data)
-            infofile.write(writedata)
-        with open(f"data/progress/{self.username}/map.txt", mode='w', encoding="utf-8") as mapfile:
-            for elem in self.save_level:
-                mapfile.write(' '.join(elem))
-                mapfile.write('\n')
+    def close_game(self):
         self.running = False
+        self.close()
 
 
 def dialog_win(dialogname, screen):
@@ -496,12 +504,12 @@ def game_process_main(username):
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
     tiles_all_group = [tiles_group, all_sprites_group]
-    generate_level(current_level, tiles_all_group)
 
     player_group = pygame.sprite.Group()
     player = Player(username, screen, player_group, all_sprites_group, tiles_all_group)
 
-    camera = Camera()
+    camera = Camera(player)
+    camera.apply(all_sprites_group)
 
     close_win = LeaveGameWindow(player, current_level_num, username)
 
@@ -584,7 +592,7 @@ def game_process_main(username):
                 draw_icon(screen, 'buckler.png', (730, 20))
             if player.has_detector:
                 draw_icon(screen, 'detector.png', (680, 20))
-                player.detect(current_level, screen)
+                player.detect_mine(player.current_level, screen)
             if player.finished():
                 screen_type = 'dialog'
                 pressed_move_buttons = [False, False, False, False]
