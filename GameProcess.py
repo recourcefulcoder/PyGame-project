@@ -375,7 +375,7 @@ def game_process_main():
     clock = pygame.time.Clock()
     screen_type = "game"
 
-    current_level = load_level("first_level.txt")
+    current_level = load_level("third_level.txt")
 
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
@@ -469,16 +469,21 @@ def game_process_main():
                 player.detect(current_level, screen)
         if screen_type == 'buckler':
             pressed_move_buttons = [False, False, False, False]
+            player.player_is_moving = False
             buckler_screen()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     screen_type = 'game'
+                    pygame.display.set_caption("Loop")
+
         if screen_type == 'detector':
             pressed_move_buttons = [False, False, False, False]
+            player.player_is_moving = False
             detector_screen()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     screen_type = 'game'
+                    pygame.display.set_caption("Loop")
         pygame.display.flip()
 
     terminate()
