@@ -176,6 +176,11 @@ class Player(pygame.sprite.Sprite):
         self.screen = binded_screen
         self.username = username
         self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
+
+        self.clock = pygame.time.Clock()
+        self.death_timer = 0
+        self.died = False
+
         self.init_default(tiles_all_group)
 
     def init_default(self, tiles_all_group):
@@ -285,9 +290,9 @@ class Player(pygame.sprite.Sprite):
                             self.image_width, self.image_height))
 
     def check_position(self, map):
-        global running
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
+        value = self.clock.tick() / 1000
         current_cell = map[x][y]
         if current_cell == 'white':
             if not self.has_buckler:
@@ -311,8 +316,22 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.has_detector = False
                 self.detonated_mines.clear()
-                '''тут должна быть анимация смерти'''
-                self.revival(map)
+                if self.died:
+                    self.death_timer += value
+                    self.revival(map)
+                else:
+                    self.death_protocol()
+
+    def death_protocol(self):
+        self.can_move = False
+        self.died = True
+        self.planted = True
+        self.bomb_pos = [self.bomb_animation_pack.x_indent,
+                         self.bomb_animation_pack.y_indent]
+        self.bomb_animation_pack.current_exp_image.rect = pygame.Rect(
+            self.bomb_pos[0] + abs(self.bomb_animation_pack.x_indent) + WIDTH // 2 - 50 + self.image_width // 2,
+            self.bomb_pos[1] + abs(self.bomb_animation_pack.y_indent) + HEIGHT // 2 - 50 + self.image_height, 100, 100)
+        self.bomb_animation_pack.exp_row_cnt += 1
 
     def detect_mine(self, map, screen):
         # ищет и подсвечиает мины вокруг игрока
@@ -328,7 +347,14 @@ class Player(pygame.sprite.Sprite):
                                        (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
 
     def revival(self, map):
-        self.move([self.current_checkpoint[1][0] - self.map_x_pos, self.current_checkpoint[1][1] - self.map_y_pos], map)
+        if self.death_timer >= 2:  # две секунды персонаж стоит на месте после смерти
+            self.died = False
+            self.can_move = True
+            self.planted = False
+            self.bomb_pos = [None, None]
+            self.death_timer = 0
+            self.move([self.current_checkpoint[1][0] - self.map_x_pos,
+                       self.current_checkpoint[1][1] - self.map_y_pos], map)
 
     def exploded_cells(self):
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (0, 0)]
