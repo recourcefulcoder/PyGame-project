@@ -50,14 +50,14 @@
   <widget class="QPushButton" name="instruction_btn">
    <property name="geometry">
     <rect>
-     <x>570</x>
-     <y>10</y>
-     <width>20</width>
-     <height>20</height>
+     <x>210</x>
+     <y>270</y>
+     <width>191</width>
+     <height>23</height>
     </rect>
    </property>
    <property name="text">
-    <string/>
+    <string>Инструкция</string>
    </property>
   </widget>
   <widget class="QPushButton" name="load_game_btn">
