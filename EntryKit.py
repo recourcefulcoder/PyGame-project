@@ -123,9 +123,9 @@ class InstructionWindow(QWidget):
         self.initUi()
 
     def initUi(self):
+        self.setWindowIcon(QIcon("data/images/icon.png"))
         self.setFixedSize(self.width(), self.height())
         self.return_btn.clicked.connect(self.return_parent)
-        self.setWindowIcon(QIcon('images/icon.png'))
         self.init_child_widget()
 
     def init_child_widget(self):
