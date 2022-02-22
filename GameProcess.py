@@ -209,8 +209,6 @@ class Player(pygame.sprite.Sprite):
         self.bomb_animation_pack.y_indent = -HEIGHT // 2
         self.bomb_pos = [None, None]
 
-        self.detonated_mines = []
-
         with open(f"data/progress/{self.username}/info.txt") as infofile:
             data = json.loads(infofile.readlines()[0])
             self.destroyed_towers = data["destroyed_towers"]  # здесь - число уничтоженных вышек
@@ -218,6 +216,7 @@ class Player(pygame.sprite.Sprite):
             self.has_buckler = data["has_shield"]
             self.has_detector = data["has_detector"]
             self.current_checkpoint = data["checkpoint"]
+            self.detonated_mines = data["detonated_mines"]
             self.level_num = data["level_num"]
             self.map_x_pos = self.current_checkpoint[1][0]  # Здесь находятся координаты относительно левого верхнего
             self.map_y_pos = self.current_checkpoint[1][1]  # угла карты центра изображения персонажа
@@ -313,6 +312,7 @@ class Player(pygame.sprite.Sprite):
             if self.has_buckler:
                 self.detonated_mines.append((x, y))
                 self.has_buckler = False
+                self.mine_explosion()
             else:
                 self.has_detector = False
                 self.detonated_mines.clear()
@@ -326,6 +326,9 @@ class Player(pygame.sprite.Sprite):
         self.can_move = False
         self.died = True
         self.planted = True
+        self.mine_explosion()
+
+    def mine_explosion(self):
         self.bomb_pos = [self.bomb_animation_pack.x_indent,
                          self.bomb_animation_pack.y_indent]
         self.bomb_animation_pack.current_exp_image.rect = pygame.Rect(
@@ -382,7 +385,8 @@ class Player(pygame.sprite.Sprite):
                 "checkpoint": self.current_checkpoint,
                 "has_shield": self.has_buckler,
                 "has_detector": self.has_detector,
-                "destroyed_towers": self.destroyed_towers
+                "destroyed_towers": self.destroyed_towers,
+                "detonated_mines": self.detonated_mines
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
