@@ -4,6 +4,7 @@ from pygame import image as pi
 import sys
 import os
 import json
+import sqlite3
 from math import floor
 from generate_level import (load_level, generate_level, terminate,
                             Camera, STEP, tile_images)
@@ -72,7 +73,9 @@ def change_level(player, tiles_all_group):
             "checkpoint": (0, [16, 24]),
             "has_shield": False,
             "has_detector": False,
-            "destroyed_towers": 0
+            "destroyed_towers": 0,
+            "detonated_mines": [],
+            "died_times": 0
         }
         writedata = json.dumps(data)
         infofile.write(writedata)
@@ -87,6 +90,28 @@ def change_level(player, tiles_all_group):
             map = sample.readlines()
             for elem in map:
                 mapfile.write(elem)
+
+    con = sqlite3.connect("database.sqlite")
+    cur = con.cursor()
+    id = cur.execute(f"SELECT id FROM users"
+                     f"     WHERE nickname = '{player.username}'"
+                     ).fetchone()[0]
+    data = cur.execute(f"SELECT * FROM results"
+                       f"    WHERE id = {id}"
+                       ).fetchall()
+    if data[0][player.level_num] is None or player.died_times < data[0][player.level_num]:
+        if player.level_num == 1:
+            column = "fir_level"
+        elif player.level_num == 2:
+            column = "sec_level"
+        else:
+            column = "third_level"
+        cur.execute(f"UPDATE results"
+                    f"  SET {column} = {player.died_times}"
+                    f"  WHERE id = {id}"
+                    )
+        con.commit()
+
     player.init_default(tiles_all_group)
 
 
@@ -199,9 +224,6 @@ class Player(pygame.sprite.Sprite):
 
         self.clock = pygame.time.Clock()
 
-        # self.map_x_pos = self.image_width // 2  # Здесь находятся координаты относительно левого верхнего
-        # self.map_y_pos = self.image_height // 2  # угла карты центра изображения персонажа
-
         self.detonate_zone = 200
         self.attack_zone = 50
         self.bomb_planted = False
@@ -222,6 +244,7 @@ class Player(pygame.sprite.Sprite):
             self.map_y_pos = self.current_checkpoint[1][1]  # угла карты центра изображения персонажа
             self.rect.x = self.map_x_pos - self.image_width // 2
             self.rect.y = self.map_y_pos - self.image_height // 2
+            self.died_times = data["died_times"]
 
         self.current_level = load_level(f"{self.username}")
 
@@ -275,7 +298,7 @@ class Player(pygame.sprite.Sprite):
                         self.towers[(elem[0], elem[1])].image = tile_images["ruins"]
                         self.destroyed_towers += 1
             if bomb_distance <= self.attack_zone:
-                print("you're dead!")
+                self.death_protocol()
 
     def change_picture(self):
         if not self.player_is_moving or not self.can_move:
@@ -293,36 +316,37 @@ class Player(pygame.sprite.Sprite):
         y, x = count_player_coords_p(self)
         value = self.clock.tick() / 1000
         current_cell = map[x][y]
-        if current_cell == 'white':
-            if not self.has_buckler:
-                for _ in range(1000):
-                    buckler_screen()
-            self.has_buckler = True
-        if current_cell == 'blue':
-            if not self.has_detector:
-                for _ in range(1000):
-                    detector_screen()
-            self.has_detector = True
-        if len(current_cell) == 1:
-            if int(current_cell) > self.current_checkpoint[0]:
-                self.current_checkpoint[0] = int(current_cell)
-                self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
-                self.save_progress()
-        if current_cell == 'red' and (x, y) not in self.detonated_mines:
-            if self.has_buckler:
-                self.detonated_mines.append((x, y))
-                self.has_buckler = False
-                self.mine_explosion()
-            else:
-                self.has_detector = False
-                self.detonated_mines.clear()
-                if self.died:
-                    self.death_timer += value
-                    self.revival(map)
+        if self.died:
+            self.death_timer += value
+            self.revival(map)
+        else:
+            if current_cell == 'white':
+                if not self.has_buckler:
+                    for _ in range(1000):
+                        buckler_screen()
+                self.has_buckler = True
+            if current_cell == 'blue':
+                if not self.has_detector:
+                    for _ in range(1000):
+                        detector_screen()
+                self.has_detector = True
+            if len(current_cell) == 1:
+                if int(current_cell) > self.current_checkpoint[0]:
+                    self.current_checkpoint[0] = int(current_cell)
+                    self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
+                    self.save_progress()
+            if current_cell == 'red' and (x, y) not in self.detonated_mines:
+                if self.has_buckler:
+                    self.detonated_mines.append((x, y))
+                    self.has_buckler = False
+                    self.mine_explosion()
                 else:
+                    self.has_detector = False
+                    self.detonated_mines.clear()
                     self.death_protocol()
 
     def death_protocol(self):
+        self.died_times += 1
         self.can_move = False
         self.died = True
         self.planted = True
@@ -481,19 +505,22 @@ class DialogWindow(pygame.Surface):
 
 
 class LeaveGameWindow(QWidget):
-    def __init__(self, player, level_num, username):
+    def __init__(self, player):
         super().__init__()
         uic.loadUi("ui_files/leave_game_win.ui", self)
         self.running = True
         self.player = player
-        self.level_num = level_num
-        self.save_level = ''
-        self.username = username
         self.no_btn.clicked.connect(self.close)
         self.yes_btn.clicked.connect(self.close_game)
 
     def close_game(self):
         self.running = False
+        with open(f"data/progress/{self.player.username}/info.txt", mode='r') as info:
+            data = json.loads(info.readlines()[0])
+            data["died_times"] = self.player.died_times
+        with open(f"data/progress/{self.player.username}/info.txt", mode='w') as info:
+            writedata = json.dumps(data)
+            info.write(writedata)
         self.close()
 
 
@@ -527,10 +554,6 @@ def game_process_main(username):
 
     clock = pygame.time.Clock()
 
-    with open(f"data/progress/{username}/info.txt", mode='r', encoding='utf-8') as info:
-        data = json.loads(info.readlines()[0])
-        current_level_num = data["level_num"]
-
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
     tiles_all_group = [tiles_group, all_sprites_group]
@@ -541,7 +564,7 @@ def game_process_main(username):
     camera = Camera(player)
     camera.apply(all_sprites_group)
 
-    close_win = LeaveGameWindow(player, current_level_num, username)
+    close_win = LeaveGameWindow(player)
 
     doubled_speed = False
     pressed_move_buttons = [False, False, False, False]
