@@ -106,8 +106,14 @@ def change_level(player, tiles_all_group):
             column = "sec_level"
         else:
             column = "third_level"
+        values = data[1:]
+        total = 0
+        for elem in values:
+            if elem is not None:
+                total += elem
         cur.execute(f"UPDATE results"
-                    f"  SET {column} = {player.died_times}"
+                    f"  SET {column} = {player.died_times},"
+                    f"  total = {total}"
                     f"  WHERE id = {id}"
                     )
         con.commit()
