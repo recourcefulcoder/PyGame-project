@@ -227,7 +227,8 @@ class ConfirmWindow(QWidget):
                 "checkpoint": (0, [16, 24]),
                 "has_shield": False,
                 "has_detector": False,
-                "destroyed_towers": 0
+                "destroyed_towers": 0,
+                "detonated_mines": []
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
