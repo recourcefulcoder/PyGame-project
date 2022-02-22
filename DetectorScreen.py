@@ -1,4 +1,22 @@
-import pygame
+import pygame, os, sys
+from pygame import image as pi
+
+
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data\\images', name)
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pi.load(fullname)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
+
 
 
 def detector_screen():
@@ -6,6 +24,7 @@ def detector_screen():
     size = (800, 600)
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption('Ты получаешь металлоискатель!')
+    screen.blit(load_image('win_bg_image.jpg'), (0, 0))
     font1 = pygame.font.SysFont('segoescript', 30)
     font2 = pygame.font.SysFont('segoescript', 20)
     text1 = font1.render('Ты получаешь металлоискатель!', True, (255, 255, 0))

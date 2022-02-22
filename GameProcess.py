@@ -8,6 +8,7 @@ from generate_level import (load_level, generate_level, terminate,
                             Camera, STEP)
 from BucklerScreen import buckler_screen
 from DetectorScreen import detector_screen
+from CheckpointScreen import checkpoint_screen
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
@@ -234,6 +235,7 @@ class Player(pygame.sprite.Sprite):
             if int(current_cell) > self.current_checkpoint[0]:
                 self.current_checkpoint[0] = int(current_cell)
                 self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
+                screen_type = 'checkpoint'
         if current_cell == 'red' and (x, y) not in self.detonated_mines:
             if self.has_buckler:
                 self.detonated_mines.append((x, y))
@@ -375,7 +377,7 @@ def game_process_main():
     clock = pygame.time.Clock()
     screen_type = "game"
 
-    current_level = load_level("third_level.txt")
+    current_level = load_level("first_level.txt")
 
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
@@ -472,7 +474,7 @@ def game_process_main():
             player.player_is_moving = False
             buckler_screen()
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     screen_type = 'game'
                     pygame.display.set_caption("Loop")
 
@@ -481,7 +483,15 @@ def game_process_main():
             player.player_is_moving = False
             detector_screen()
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                    screen_type = 'game'
+                    pygame.display.set_caption("Loop")
+        if screen_type == 'checkpoint':
+            pressed_move_buttons = [False, False, False, False]
+            player.player_is_moving = False
+            checkpoint_screen()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     screen_type = 'game'
                     pygame.display.set_caption("Loop")
         pygame.display.flip()
