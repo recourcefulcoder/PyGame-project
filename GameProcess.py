@@ -469,31 +469,27 @@ def game_process_main():
             if player.has_detector:
                 draw_icon(screen, 'detector.png', (680, 20))
                 player.detect(current_level, screen)
+
         if screen_type == 'buckler':
+            buckler_screen()
+            screen_type = 'popup_win'
+
+        if screen_type == 'detector':
+            detector_screen()
+            screen_type = 'popup_win'
+
+        if screen_type == 'checkpoint':
+            checkpoint_screen()
+            screen_type = 'popup_win'
+
+        if screen_type == 'popup_win':
             pressed_move_buttons = [False, False, False, False]
             player.player_is_moving = False
-            buckler_screen()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     screen_type = 'game'
                     pygame.display.set_caption("Loop")
 
-        if screen_type == 'detector':
-            pressed_move_buttons = [False, False, False, False]
-            player.player_is_moving = False
-            detector_screen()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                    screen_type = 'game'
-                    pygame.display.set_caption("Loop")
-        if screen_type == 'checkpoint':
-            pressed_move_buttons = [False, False, False, False]
-            player.player_is_moving = False
-            checkpoint_screen()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                    screen_type = 'game'
-                    pygame.display.set_caption("Loop")
         pygame.display.flip()
 
     terminate()
