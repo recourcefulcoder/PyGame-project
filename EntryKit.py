@@ -252,6 +252,12 @@ class ConfirmWindow(QWidget):
             cur.execute(
                 f"INSERT INTO users(nickname, password) VALUES('{self.login_val.text()}', '{self.pass_val.text()}')"
             )
+            id = cur.execute(f"SELECT id FROM users"
+                             f"    WHERE nickname = '{self.login_val.text()}'"
+                             ).fetchone()[0]
+            print(id)
+            cur.execute(f"INSERT INTO results(id) VALUES({id})"
+                        )
 
             self.add_progress_info(self.login_val.text())
 
@@ -264,6 +270,7 @@ class ConfirmWindow(QWidget):
                                                    ' 1px; border-color: red;')
 
         self.con.commit()
+        self.con.close()
 
         self.close()
 
@@ -278,7 +285,8 @@ class ConfirmWindow(QWidget):
                 "has_shield": False,
                 "has_detector": False,
                 "destroyed_towers": 0,
-                "detonated_mines": []
+                "detonated_mines": [],
+                "died_times": 0
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
