@@ -228,12 +228,8 @@ class Player(pygame.sprite.Sprite):
         self.image = self.full_image.subsurface(
             pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
         self.rect = self.image.get_rect()
-        self.map_x_pos = self.image_width // 2  # Здесь находятся координаты относительно левого верхнего
-        self.map_y_pos = self.image_height // 2  # угла карты центра изображения персонажа
 
         self.clock = pygame.time.Clock()
-        self.screen = binded_screen
-        self.camera = Camera()
 
         self.detonate_zone = 200
         self.attack_zone = 50
@@ -323,7 +319,7 @@ class Player(pygame.sprite.Sprite):
                             self.image_width, self.image_height))
 
     def check_position(self, map):
-        global running, screen_type
+        global screen_type
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
         value = self.clock.tick() / 1000
@@ -333,18 +329,18 @@ class Player(pygame.sprite.Sprite):
             self.revival(map)
         else:
             if current_cell == 'white':
-                if not self.has_buckler:
-                    screen_type = 'buckler'
+                # if not self.has_buckler:
+                #     screen_type = 'buckler'
                 self.has_buckler = True
             if current_cell == 'blue':
-                if not self.has_detector:
-                    screen_type = 'detector'
+                # if not self.has_detector:
+                #     screen_type = 'detector'
                 self.has_detector = True
             if len(current_cell) == 1:
                 if int(current_cell) > self.current_checkpoint[0]:
                     self.current_checkpoint[0] = int(current_cell)
                     self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
-                    screen_type = 'checkpoint'
+                    # screen_type = 'checkpoint'
             if current_cell == 'red' and (x, y) not in self.detonated_mines:
                 if self.has_buckler:
                     self.detonated_mines.append((x, y))
@@ -354,7 +350,6 @@ class Player(pygame.sprite.Sprite):
                     self.has_detector = False
                     self.detonated_mines.clear()
                     self.death_protocol()
-
 
     def death_protocol(self):
         self.died_times += 1
@@ -667,17 +662,17 @@ def game_process_main(username):
                     dialog_win("turn to third level.txt", screen)
                 else:
                     dialog_win("finish game.txt", screen)
-            if screen_type == 'buckler':
-                buckler_screen()
-                screen_type = 'popup_win'
-
-            if screen_type == 'detector':
-                detector_screen()
-                screen_type = 'popup_win'
-
-            if screen_type == 'checkpoint':
-                checkpoint_screen()
-                screen_type = 'popup_win'
+            # if screen_type == 'buckler':
+            #     buckler_screen()
+            #     screen_type = 'popup_win'
+            #
+            # if screen_type == 'detector':
+            #     detector_screen()
+            #     screen_type = 'popup_win'
+            #
+            # if screen_type == 'checkpoint':
+            #     checkpoint_screen()
+            #     screen_type = 'popup_win'
 
             if screen_type == 'popup_win':
                 pressed_move_buttons = [False, False, False, False]
