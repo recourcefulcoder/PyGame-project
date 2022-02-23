@@ -3,15 +3,27 @@ import pygame
 from pygame import image as pi
 import sys
 import os
+import json
+import sqlite3
 from math import floor
 from generate_level import (load_level, generate_level, terminate,
-                            Camera, STEP)
+                            Camera, STEP, tile_images)
+from PyQt5.QtWidgets import QWidget, QApplication
+from PyQt5 import uic
 from BucklerScreen import buckler_screen
 from DetectorScreen import detector_screen
 from CheckpointScreen import checkpoint_screen
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
+screen_type = 'game'  # другой вариант - dialog. В соответствии с этим значением
+
+
+# в цикле функции game_process_main обрабатывается то или иное действие.
+
+
+def except_hook(cls, traceback, exception):
+    sys.__excepthook__(cls, traceback, exception)
 
 
 def load_image(name, colorkey=None):
@@ -53,6 +65,61 @@ def count_player_coords_c(x, y):
 def draw_icon(screen, image_name, pose):
     image = load_image(image_name, -1)
     screen.blit(image, pose)
+
+
+def change_level(player, tiles_all_group):
+    with open(f"data/progress/{player.username}/info.txt", mode='w', encoding='utf-8') as infofile:
+        data = {
+            "level_num": (player.level_num + 1) % 4 + (player.level_num == 3),
+            "checkpoint": (0, [16, 24]),
+            "has_shield": False,
+            "has_detector": False,
+            "destroyed_towers": 0,
+            "detonated_mines": [],
+            "died_times": 0
+        }
+        writedata = json.dumps(data)
+        infofile.write(writedata)
+    if player.level_num == 1:
+        num = "second"
+    elif player.level_num == 2:
+        num = "third"
+    else:
+        num = "first"
+    with open(f"data/progress/{player.username}/map.txt", mode='w') as mapfile:
+        with open(f"data/levels/{num}_level.txt", mode='r') as sample:
+            map = sample.readlines()
+            for elem in map:
+                mapfile.write(elem)
+
+    con = sqlite3.connect("database.sqlite")
+    cur = con.cursor()
+    id = cur.execute(f"SELECT id FROM users"
+                     f"     WHERE nickname = '{player.username}'"
+                     ).fetchone()[0]
+    data = cur.execute(f"SELECT * FROM results"
+                       f"    WHERE id = {id}"
+                       ).fetchall()
+    if data[0][player.level_num] is None or player.died_times < data[0][player.level_num]:
+        if player.level_num == 1:
+            column = "fir_level"
+        elif player.level_num == 2:
+            column = "sec_level"
+        else:
+            column = "third_level"
+        values = data[1:]
+        total = 0
+        for elem in values:
+            if elem is not None:
+                total += elem
+        cur.execute(f"UPDATE results"
+                    f"  SET {column} = {player.died_times},"
+                    f"  total = {total}"
+                    f"  WHERE id = {id}"
+                    )
+        con.commit()
+
+    player.init_default(tiles_all_group)
 
 
 class BombAnimationPack:
@@ -113,7 +180,8 @@ class BombAnimationPack:
             pygame.draw.circle(self.alpha_screen, (219, 137, 0), center, self.player.detonate_zone)
             pygame.draw.circle(self.alpha_screen, (255, 0, 0), center, self.player.attack_zone)
             self.player.screen.blit(self.alpha_screen,
-                                    (self.x_indent - self.player.bomb_pos[0], self.y_indent - self.player.bomb_pos[1]))
+                                    (self.x_indent - self.player.bomb_pos[0],
+                                     self.y_indent - self.player.bomb_pos[1]))
 
     def animate_explosion(self):
         if self.exp_row_cnt == -2:
@@ -135,8 +203,19 @@ class BombAnimationPack:
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, binded_screen, player_group, all_sprites_group):
+    def __init__(self, username, binded_screen, player_group, all_sprites_group, tiles_all_group):
         super().__init__(player_group, all_sprites_group)
+        self.screen = binded_screen
+        self.username = username
+        self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
+
+        self.clock = pygame.time.Clock()
+        self.death_timer = 0
+        self.died = False
+
+        self.init_default(tiles_all_group)
+
+    def init_default(self, tiles_all_group):
         self.current_orientation = 0
         # 0 - персонаж повёрнут лицом, 1 - левым боком, 2 - правым боком, 3 - спиной
         self.last_animation_step = 0
@@ -159,13 +238,32 @@ class Player(pygame.sprite.Sprite):
         self.detonate_zone = 200
         self.attack_zone = 50
         self.bomb_planted = False
-        self.bomb_animation_pack = BombAnimationPack(self, 3, all_sprites_group)
+        self.bomb_animation_pack.x_indent = -WIDTH // 2
+        self.bomb_animation_pack.y_indent = -HEIGHT // 2
         self.bomb_pos = [None, None]
 
-        self.has_buckler = False
-        self.has_detector = False
-        self.current_checkpoint = [0, [self.map_x_pos, self.map_y_pos]]
-        self.detonated_mines = []
+        with open(f"data/progress/{self.username}/info.txt") as infofile:
+            data = json.loads(infofile.readlines()[0])
+            self.destroyed_towers = data["destroyed_towers"]  # здесь - число уничтоженных вышек
+            self.level_num = data["level_num"]
+            self.has_buckler = data["has_shield"]
+            self.has_detector = data["has_detector"]
+            self.current_checkpoint = data["checkpoint"]
+            self.detonated_mines = data["detonated_mines"]
+            self.level_num = data["level_num"]
+            self.map_x_pos = self.current_checkpoint[1][0]  # Здесь находятся координаты относительно левого верхнего
+            self.map_y_pos = self.current_checkpoint[1][1]  # угла карты центра изображения персонажа
+            self.rect.x = self.map_x_pos - self.image_width // 2
+            self.rect.y = self.map_y_pos - self.image_height // 2
+            self.died_times = data["died_times"]
+
+        self.current_level = load_level(f"{self.username}")
+
+        for item in tiles_all_group[0]:
+            # в нулевом элементе должна (!) находится группа, состоящая только из клеток поля
+            item.kill()
+
+        self.towers = generate_level(self.current_level, tiles_all_group)
 
     def move(self, moving_vector, map):
         if self.can_move:
@@ -204,8 +302,14 @@ class Player(pygame.sprite.Sprite):
             if bomb_distance <= self.detonate_zone:
                 self.bomb_planted = False
                 self.bomb_animation_pack.exp_row_cnt += 1
+                ans = self.exploded_cells()
+                for elem in ans:
+                    if self.current_level[elem[0]][elem[1]] == 'brown':
+                        self.current_level[elem[0]][elem[1]] = "green"
+                        self.towers[(elem[0], elem[1])].image = tile_images["ruins"]
+                        self.destroyed_towers += 1
             if bomb_distance <= self.attack_zone:
-                print("you're dead!")
+                self.death_protocol()
 
     def change_picture(self):
         if not self.player_is_moving or not self.can_move:
@@ -219,34 +323,55 @@ class Player(pygame.sprite.Sprite):
                             self.image_width, self.image_height))
 
     def check_position(self, map):
-        global screen_type
+        global running, screen_type
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
+        value = self.clock.tick() / 1000
         current_cell = map[x][y]
-        if current_cell == 'white':
-            if not self.has_buckler:
-                screen_type = 'buckler'
-            self.has_buckler = True
-        if current_cell == 'blue':
-            if not self.has_detector:
-                screen_type = 'detector'
-            self.has_detector = True
-        if len(current_cell) == 1:
-            if int(current_cell) > self.current_checkpoint[0]:
-                self.current_checkpoint[0] = int(current_cell)
-                self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
-                screen_type = 'checkpoint'
-        if current_cell == 'red' and (x, y) not in self.detonated_mines:
-            if self.has_buckler:
-                self.detonated_mines.append((x, y))
-                self.has_buckler = False
-            else:
-                self.has_detector = False
-                self.detonated_mines.clear()
-                '''тут должна быть анимация смерти'''
-                self.revival(map)
+        if self.died:
+            self.death_timer += value
+            self.revival(map)
+        else:
+            if current_cell == 'white':
+                if not self.has_buckler:
+                    screen_type = 'buckler'
+                self.has_buckler = True
+            if current_cell == 'blue':
+                if not self.has_detector:
+                    screen_type = 'detector'
+                self.has_detector = True
+            if len(current_cell) == 1:
+                if int(current_cell) > self.current_checkpoint[0]:
+                    self.current_checkpoint[0] = int(current_cell)
+                    self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
+                    screen_type = 'checkpoint'
+            if current_cell == 'red' and (x, y) not in self.detonated_mines:
+                if self.has_buckler:
+                    self.detonated_mines.append((x, y))
+                    self.has_buckler = False
+                    self.mine_explosion()
+                else:
+                    self.has_detector = False
+                    self.detonated_mines.clear()
+                    self.death_protocol()
 
-    def detect(self, map, screen):
+
+    def death_protocol(self):
+        self.died_times += 1
+        self.can_move = False
+        self.died = True
+        self.planted = True
+        self.mine_explosion()
+
+    def mine_explosion(self):
+        self.bomb_pos = [self.bomb_animation_pack.x_indent,
+                         self.bomb_animation_pack.y_indent]
+        self.bomb_animation_pack.current_exp_image.rect = pygame.Rect(
+            self.bomb_pos[0] + abs(self.bomb_animation_pack.x_indent) + WIDTH // 2 - 50 + self.image_width // 2,
+            self.bomb_pos[1] + abs(self.bomb_animation_pack.y_indent) + HEIGHT // 2 - 50 + self.image_height, 100, 100)
+        self.bomb_animation_pack.exp_row_cnt += 1
+
+    def detect_mine(self, map, screen):
         # ищет и подсвечиает мины вокруг игрока
         y, x = count_player_coords_p(self)
         screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
@@ -260,7 +385,50 @@ class Player(pygame.sprite.Sprite):
                                        (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
 
     def revival(self, map):
-        self.move([self.current_checkpoint[1][0] - self.map_x_pos, self.current_checkpoint[1][1] - self.map_y_pos], map)
+        if self.death_timer >= 2:  # две секунды персонаж стоит на месте после смерти
+            self.died = False
+            self.can_move = True
+            self.planted = False
+            self.bomb_pos = [None, None]
+            self.death_timer = 0
+            self.move([self.current_checkpoint[1][0] - self.map_x_pos,
+                       self.current_checkpoint[1][1] - self.map_y_pos], map)
+
+    def exploded_cells(self):
+        steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (0, 0)]
+        ans = list()
+        x = int(abs(self.bomb_pos[0]) // STEP)
+        y = int(abs(self.bomb_pos[1]) // STEP)
+        for point in steps:
+            ppos = [(x + point[0]) * STEP + STEP // 2, (y + point[1]) * STEP + STEP // 2]  # point position
+            dist = ((abs(self.bomb_pos[0]) + self.image_width // 2 - ppos[0]) ** 2 + (
+                    abs(self.bomb_pos[1]) + self.image_height - ppos[1]) ** 2) ** 0.5
+            # оказывается, bomb_pos хранит координаты левого верхнего угла изображения игрока
+            # в момент закладки бомбы, а не её технические координаты на карте
+            if dist <= self.attack_zone and not (x + point[0] < 0 or y + point[1] < 0):
+                ans.append([y + point[1], x + point[0]])
+        return ans
+
+    def finished(self):
+        x, y = count_player_coords_p(self)
+        return self.current_level[y][x] == 'golden' and self.destroyed_towers >= 3
+
+    def save_progress(self):
+        with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
+            data = {
+                "level_num": self.level_num,
+                "checkpoint": self.current_checkpoint,
+                "has_shield": self.has_buckler,
+                "has_detector": self.has_detector,
+                "destroyed_towers": self.destroyed_towers,
+                "detonated_mines": self.detonated_mines
+            }
+            writedata = json.dumps(data)
+            infofile.write(writedata)
+        with open(f"data/progress/{self.username}/map.txt", mode='w', encoding="utf-8") as mapfile:
+            for elem in self.current_level:
+                mapfile.write(' '.join(elem))
+                mapfile.write('\n')
 
 
 class DialogWindow(pygame.Surface):
@@ -347,12 +515,31 @@ class DialogWindow(pygame.Surface):
         return text_array
 
 
-def dialog_win_main():
-    pygame.init()
+class LeaveGameWindow(QWidget):
+    def __init__(self, player):
+        super().__init__()
+        uic.loadUi("ui_files/leave_game_win.ui", self)
+        self.running = True
+        self.player = player
+        self.no_btn.clicked.connect(self.close)
+        self.yes_btn.clicked.connect(self.close_game)
+
+    def close_game(self):
+        self.running = False
+        with open(f"data/progress/{self.player.username}/info.txt", mode='r') as info:
+            data = json.loads(info.readlines()[0])
+            data["died_times"] = self.player.died_times
+        with open(f"data/progress/{self.player.username}/info.txt", mode='w') as info:
+            writedata = json.dumps(data)
+            info.write(writedata)
+        self.close()
+
+
+def dialog_win(dialogname, screen):
+    global screen_type
     pygame.time.set_timer(CHANGE_SPRITE, 200)
-    pygame.display.set_caption("Loop")
-    screen = pygame.display.set_mode(SIZE)
-    win = DialogWindow(screen, "quick start to plot.txt")
+    pygame.display.set_caption("Bomber")
+    win = DialogWindow(screen, dialogname)
     running = True
     while running:
         screen.blit(win, (0, 0))
@@ -364,43 +551,44 @@ def dialog_win_main():
                 if event.key == pygame.K_ESCAPE:
                     running = False
         pygame.display.flip()
-    terminate()
+    screen_type = "game"
 
 
-def game_process_main():
+def game_process_main(username):
     global screen_type
+    sys.excepthook = except_hook
+    app = QApplication(sys.argv)
     pygame.init()
     pygame.time.set_timer(CHANGE_SPRITE, 200)
-    pygame.display.set_caption("Loop")
+    pygame.display.set_caption("Bomber")
     screen = pygame.display.set_mode(SIZE)
 
     clock = pygame.time.Clock()
-    screen_type = "game"
-
-    current_level = load_level("first_level.txt")
 
     tiles_group = pygame.sprite.Group()
     all_sprites_group = pygame.sprite.Group()
     tiles_all_group = [tiles_group, all_sprites_group]
-    generate_level(current_level, tiles_all_group)
 
     player_group = pygame.sprite.Group()
-    player = Player(screen, player_group, all_sprites_group)
+    player = Player(username, screen, player_group, all_sprites_group, tiles_all_group)
 
-    camera = Camera()
+    camera = Camera(player)
+    camera.apply(all_sprites_group)
 
-    running = True
+    close_win = LeaveGameWindow(player)
+
     doubled_speed = False
     pressed_move_buttons = [False, False, False, False]
     # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
-    while running:
-        clock.tick(30)
-        x_pos_change = 0
-        y_pos_change = 0
-        if screen_type == "game":
+    while close_win.running:
+        if screen_type == 'game':
+            clock.tick(30)
+            x_pos_change = 0
+            y_pos_change = 0
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False
+                    close_win.save_level = player.current_level
+                    close_win.show()
                 if event.type == pygame.KEYDOWN:
                     check = False
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -427,7 +615,7 @@ def game_process_main():
                     if event.key == pygame.K_e:
                         player.detonate_bomb()
                     if event.key == pygame.K_ESCAPE:
-                        running = False
+                        close_win.running = False
                     if check:
                         player.player_is_moving = True
                 if event.type == pygame.KEYUP:
@@ -457,9 +645,9 @@ def game_process_main():
             x_pos_change += speed * pressed_move_buttons[2]
             x_pos_change -= speed * pressed_move_buttons[1]
             screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-            player.move([x_pos_change, y_pos_change], current_level)
+            player.move([x_pos_change, y_pos_change], player.current_level)
             camera.update(player)
-            player.check_position(current_level)
+            player.check_position(player.current_level)
             camera.apply(all_sprites_group)
             tiles_group.draw(screen)
             player.bomb_animation_pack.update()
@@ -468,32 +656,41 @@ def game_process_main():
                 draw_icon(screen, 'buckler.png', (730, 20))
             if player.has_detector:
                 draw_icon(screen, 'detector.png', (680, 20))
-                player.detect(current_level, screen)
+                player.detect_mine(player.current_level, screen)
+            if player.finished():
+                screen_type = 'dialog'
+                pressed_move_buttons = [False, False, False, False]
+                change_level(player, tiles_all_group)
+                if player.level_num == 2:
+                    dialog_win("turn to second level.txt", screen)
+                elif player.level_num == 3:
+                    dialog_win("turn to third level.txt", screen)
+                else:
+                    dialog_win("finish game.txt", screen)
+            if screen_type == 'buckler':
+                buckler_screen()
+                screen_type = 'popup_win'
 
-        if screen_type == 'buckler':
-            buckler_screen()
-            screen_type = 'popup_win'
+            if screen_type == 'detector':
+                detector_screen()
+                screen_type = 'popup_win'
 
-        if screen_type == 'detector':
-            detector_screen()
-            screen_type = 'popup_win'
+            if screen_type == 'checkpoint':
+                checkpoint_screen()
+                screen_type = 'popup_win'
 
-        if screen_type == 'checkpoint':
-            checkpoint_screen()
-            screen_type = 'popup_win'
+            if screen_type == 'popup_win':
+                pressed_move_buttons = [False, False, False, False]
+                player.player_is_moving = False
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                        screen_type = 'game'
+                        pygame.display.set_caption("Loop")
 
-        if screen_type == 'popup_win':
-            pressed_move_buttons = [False, False, False, False]
-            player.player_is_moving = False
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                    screen_type = 'game'
-                    pygame.display.set_caption("Loop")
-
-        pygame.display.flip()
+            pygame.display.flip()
 
     terminate()
 
 
 if __name__ == "__main__":
-    game_process_main()
+    game_process_main("admin")
