@@ -329,18 +329,18 @@ class Player(pygame.sprite.Sprite):
             self.revival(map)
         else:
             if current_cell == 'white':
-                # if not self.has_buckler:
-                #     screen_type = 'buckler'
+                if not self.has_buckler:
+                    screen_type = 'buckler'
                 self.has_buckler = True
             if current_cell == 'blue':
-                # if not self.has_detector:
-                #     screen_type = 'detector'
+                if not self.has_detector:
+                    screen_type = 'detector'
                 self.has_detector = True
             if len(current_cell) == 1:
                 if int(current_cell) > self.current_checkpoint[0]:
                     self.current_checkpoint[0] = int(current_cell)
                     self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
-                    # screen_type = 'checkpoint'
+                    screen_type = 'checkpoint'
             if current_cell == 'red' and (x, y) not in self.detonated_mines:
                 if self.has_buckler:
                     self.detonated_mines.append((x, y))
@@ -662,27 +662,27 @@ def game_process_main(username):
                     dialog_win("turn to third level.txt", screen)
                 else:
                     dialog_win("finish game.txt", screen)
-            # if screen_type == 'buckler':
-            #     buckler_screen()
-            #     screen_type = 'popup_win'
-            #
-            # if screen_type == 'detector':
-            #     detector_screen()
-            #     screen_type = 'popup_win'
-            #
-            # if screen_type == 'checkpoint':
-            #     checkpoint_screen()
-            #     screen_type = 'popup_win'
+        if screen_type == 'buckler':
+            buckler_screen()
+            screen_type = 'popup_win'
 
-            if screen_type == 'popup_win':
-                pressed_move_buttons = [False, False, False, False]
-                player.player_is_moving = False
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                        screen_type = 'game'
-                        pygame.display.set_caption("Loop")
+        if screen_type == 'detector':
+            detector_screen()
+            screen_type = 'popup_win'
 
-            pygame.display.flip()
+        if screen_type == 'checkpoint':
+            checkpoint_screen()
+            screen_type = 'popup_win'
+
+        if screen_type == 'popup_win':
+            pressed_move_buttons = [False, False, False, False]
+            player.player_is_moving = False
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                    screen_type = 'game'
+                    pygame.display.set_caption("Bomber")
+
+        pygame.display.flip()
 
     terminate()
 
