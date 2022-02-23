@@ -341,6 +341,7 @@ class Player(pygame.sprite.Sprite):
                     self.current_checkpoint[0] = int(current_cell)
                     self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
                     screen_type = 'checkpoint'
+                    self.save_progress()
             if current_cell == 'red' and (x, y) not in self.detonated_mines:
                 if self.has_buckler:
                     self.detonated_mines.append((x, y))
