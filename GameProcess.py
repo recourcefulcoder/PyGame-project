@@ -653,8 +653,6 @@ def game_process_main(username, main_window):
                         player.plant_bomb()
                     if event.key == pygame.K_e:
                         player.detonate_bomb()
-                    if event.key == pygame.K_ESCAPE:
-                        close_win.running = False
                     if check:
                         player.player_is_moving = True
                 if event.type == pygame.KEYUP:
