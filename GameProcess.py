@@ -6,13 +6,10 @@ import os
 import json
 import sqlite3
 from math import floor
-from generate_level import (load_level, generate_level, terminate,
+from generate_level import (load_level, generate_level,
                             Camera, STEP, tile_images)
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5 import uic
-from BucklerScreen import buckler_screen
-from DetectorScreen import detector_screen
-from CheckpointScreen import checkpoint_screen
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
@@ -124,6 +121,51 @@ def change_level(player, tiles_all_group):
     con.close()
 
     player.init_default(tiles_all_group)
+
+
+def detector_screen():
+    screen = pygame.display.set_mode(SIZE)
+    pygame.display.set_caption('Вы получили металлоискатель!')
+    screen.blit(load_image('win_bg_image.jpg'), (0, 0))
+    font1 = pygame.font.SysFont('segoescript', 30)
+    font2 = pygame.font.SysFont('segoescript', 20)
+    text1 = font1.render('Вы получили металлоискатель!', True, (255, 255, 0))
+    text2 = font2.render('Он покажет вам,', True, (255, 255, 0))
+    text3 = font2.render('где расположены мины.', True, (255, 255, 0))
+    screen.blit(text1, (SIZE[0] / 2 - text1.get_size()[0] // 2, 150))
+    screen.blit(text2, (SIZE[0] / 2 - text2.get_size()[0] // 2, 250))
+    screen.blit(text3, (SIZE[0] / 2 - text3.get_size()[0] // 2, 300))
+    pygame.display.flip()
+
+
+def checkpoint_screen():
+    screen = pygame.display.set_mode(SIZE)
+    screen.blit(load_image('win_bg_image.jpg'), (0, 0))
+    pygame.display.set_caption('Точка сохранениния')
+    font1 = pygame.font.SysFont('segoescript', 40)
+    font2 = pygame.font.SysFont('segoescript', 20)
+    text1 = font1.render('Поздравляю!', True, (255, 255, 0))
+    text2 = font2.render('Вы достигли', True, (255, 255, 0))
+    text3 = font2.render('Точки сохранинения.', True, (255, 255, 0))
+    screen.blit(text1, (SIZE[0] / 2 - text1.get_size()[0] // 2, 150))
+    screen.blit(text2, (SIZE[0] / 2 - text2.get_size()[0] // 2, 250))
+    screen.blit(text3, (SIZE[0] / 2 - text3.get_size()[0] // 2, 300))
+    pygame.display.flip()
+
+
+def buckler_screen():
+    screen = pygame.display.set_mode(SIZE)
+    screen.blit(load_image('win_bg_image.jpg'), (0, 0))
+    pygame.display.set_caption('Вы получили щит!')
+    font1 = pygame.font.SysFont('segoescript', 40)
+    font2 = pygame.font.SysFont('segoescript', 20)
+    text1 = font1.render('Вы получили щит!', True, (255, 255, 0))
+    text2 = font2.render('Он убережет вас от', True, (255, 255, 0))
+    text3 = font2.render('подрыва на следующей мине', True, (255, 255, 0))
+    screen.blit(text1, (SIZE[0] / 2 - text1.get_size()[0] // 2, 150))
+    screen.blit(text2, (SIZE[0] / 2 - text2.get_size()[0] // 2, 250))
+    screen.blit(text3, (SIZE[0] / 2 - text3.get_size()[0] // 2, 300))
+    pygame.display.flip()
 
 
 class BombAnimationPack:
@@ -421,7 +463,8 @@ class Player(pygame.sprite.Sprite):
                 "has_shield": self.has_buckler,
                 "has_detector": self.has_detector,
                 "destroyed_towers": self.destroyed_towers,
-                "detonated_mines": self.detonated_mines
+                "detonated_mines": self.detonated_mines,
+                "died_times": self.died_times
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
@@ -554,7 +597,10 @@ def dialog_win(dialogname, screen):
     screen_type = "game"
 
 
-def game_process_main(username):
+def game_process_main(username, main_window):
+    # main_window это QWIdget, который есть главное окно игры - по нему проверяем, не надо ли закрыть
+    # игровое окно. Если закрывается главное окно игры, то за ним закрывается и игровое окно
+    print("I GOT STARTED")
     global screen_type
     sys.excepthook = except_hook
     app = QApplication(sys.argv)
@@ -572,7 +618,7 @@ def game_process_main(username):
     player_group = pygame.sprite.Group()
     player = Player(username, screen, player_group, all_sprites_group, tiles_all_group)
 
-    camera = Camera(player)
+    camera = Camera()
     camera.apply(all_sprites_group)
 
     close_win = LeaveGameWindow(player)
@@ -580,7 +626,8 @@ def game_process_main(username):
     doubled_speed = False
     pressed_move_buttons = [False, False, False, False]
     # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
-    while close_win.running:
+    print(main_window.isHidden())
+    while close_win.running and not main_window.isHidden():
         if screen_type == 'game':
             clock.tick(30)
             x_pos_change = 0
@@ -688,9 +735,20 @@ def game_process_main(username):
                     pygame.display.set_caption("Bomber")
 
         pygame.display.flip()
-
-    terminate()
+    pygame.quit()
+    main_window.game_continues = False
+    print("I WAS CLOSED")
 
 
 if __name__ == "__main__":
-    game_process_main("admin")
+    class MainWindowTest:
+        def __init__(self):
+            self.jk = "Заходит как то человек в бар..."
+            self.game_continues = True
+
+        def isHidden(self):
+            return True
+
+
+    win = MainWindowTest()
+    game_process_main("admin", win)

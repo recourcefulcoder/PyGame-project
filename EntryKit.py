@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QWidget, QLineEdit, QApplication,
 from PyQt5.QtGui import QIcon
 from PyQt5 import uic
 from PyQt5.QtGui import QImage, QPalette, QBrush
-from pprint import pprint
+from GameProcess import game_process_main
 
 
 def except_hook(cls, exception, traceback):
@@ -101,6 +101,7 @@ class MainWindow(QWidget):
         super().__init__()
         uic.loadUi("ui_files/main_window.ui", self)
         self.username = username
+        self.game_continues = False
         self.initUi()
 
     def initUi(self):
@@ -108,18 +109,30 @@ class MainWindow(QWidget):
         self.setWindowIcon(QIcon("data/images/icon.png"))
         self.greeting_label.setText(f"Здравствуй, {self.username}!")
         self.instruction_btn.clicked.connect(self.show_instruction)
+        self.new_game_btn.clicked.connect(self.start_game)
+        self.load_game_btn.clicked.connect(self.load_game)
 
     def show_instruction(self):
-        self.instr_win = InstructionWindow(self)
+        self.instr_win = InstructionWindow()
         self.instr_win.show()
-        self.close()
+
+    def start_game(self):
+        if not self.game_continues:
+            print("Ха, обманув")
+
+    def load_game(self):
+        if not self.game_continues:
+            self.game_continues = True
+            game_process_main(self.username, self)
+
+    def closeEvent(self, event):
+        print("CLOSED!!")
 
 
 class InstructionWindow(QWidget):
-    def __init__(self, parent):
+    def __init__(self):
         super().__init__()
         uic.loadUi("ui_files/instruction_win.ui", self)
-        self.parent = parent
         self.initUi()
 
     def initUi(self):
@@ -150,7 +163,6 @@ class InstructionWindow(QWidget):
         self.child_widget.resize(self.child_widget.width(), current_elem_ordinate)
 
     def return_parent(self):
-        self.parent.show()
         self.close()
 
     def closeEvent(self, event):

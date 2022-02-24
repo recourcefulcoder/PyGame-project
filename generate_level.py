@@ -1,4 +1,3 @@
-import os
 import sys
 import pygame
 
@@ -6,15 +5,15 @@ WIDTH = 800
 HEIGHT = 600
 STEP = 50
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-clock = pygame.time.Clock()
+print("generate_level set_mode")
+pygame.display.set_mode((WIDTH, HEIGHT))
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 
 
 def load_image(name, color_key=-1):  # загружает изображения
-    fullname = 'data\images\\' + name
+    fullname = 'data/images/' + name
     try:
         image = pygame.image.load(fullname).convert()
     except pygame.error as message:
@@ -27,6 +26,8 @@ def load_image(name, color_key=-1):  # загружает изображения
         image.set_colorkey(color_key)
     else:
         image = image.convert_alpha()
+    if name == "escape.png":
+        pygame.display.quit()
     return image
 
 
@@ -72,7 +73,7 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Camera:
-    def __init__(self, player):
+    def __init__(self):
         self.dx = 0
         self.dy = 0
 
@@ -90,4 +91,5 @@ class Camera:
 
 def terminate():
     pygame.quit()
+    print("quited")
     sys.exit()
