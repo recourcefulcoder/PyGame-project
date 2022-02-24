@@ -143,7 +143,7 @@ class MainWindow(QWidget):
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
-        with open(f"data/progress/{username}/map.txt", mode='w', encoding='utf-8') as mapfile:
+        with open(f"data/progress/{self.username}/map.txt", mode='w', encoding='utf-8') as mapfile:
             with open(f"data/levels/first_level.txt", mode='r', encoding='utf-8') as fir_level:
                 map = fir_level.readlines()
                 for elem in map:
