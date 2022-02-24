@@ -8,15 +8,11 @@ import sqlite3
 from math import floor
 from generate_level import (load_level, generate_level,
                             Camera, STEP, tile_images)
-from PyQt5.QtWidgets import QWidget, QApplication
+from PyQt5.QtWidgets import QWidget
 from PyQt5 import uic
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
 SIZE = WIDTH, HEIGHT = 800, 600
-screen_type = 'game'  # другой вариант - dialog. В соответствии с этим значением
-
-
-# в цикле функции game_process_main обрабатывается то или иное действие.
 
 
 def except_hook(cls, traceback, exception):
@@ -364,8 +360,7 @@ class Player(pygame.sprite.Sprite):
                 pygame.Rect(self.last_animation_step * self.image_width, self.current_orientation * self.image_height,
                             self.image_width, self.image_height))
 
-    def check_position(self, map):
-        global screen_type
+    def check_position(self, map, main_window):
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
         value = self.clock.tick() / 1000
@@ -376,17 +371,17 @@ class Player(pygame.sprite.Sprite):
         else:
             if current_cell == 'white':
                 if not self.has_buckler:
-                    screen_type = 'buckler'
+                    main_window.screen_type = 'buckler'
                 self.has_buckler = True
             if current_cell == 'blue':
                 if not self.has_detector:
-                    screen_type = 'detector'
+                    main_window.screen_type = 'detector'
                 self.has_detector = True
             if len(current_cell) == 1:
                 if int(current_cell) > self.current_checkpoint[0]:
                     self.current_checkpoint[0] = int(current_cell)
                     self.current_checkpoint[1] = [self.map_x_pos, self.map_y_pos][:]
-                    screen_type = 'checkpoint'
+                    main_window.screen_type = 'checkpoint'
                     self.save_progress()
             if current_cell == 'red' and (x, y) not in self.detonated_mines:
                 if self.has_buckler:
@@ -578,8 +573,8 @@ class LeaveGameWindow(QWidget):
         self.close()
 
 
-def dialog_win(dialogname, screen):
-    global screen_type
+def dialog_win(dialogname, screen, main_window):
+    main_window.dialog_is_going = True
     pygame.time.set_timer(CHANGE_SPRITE, 200)
     pygame.display.set_caption("Bomber")
     win = DialogWindow(screen, dialogname)
@@ -594,16 +589,14 @@ def dialog_win(dialogname, screen):
                 if event.key == pygame.K_ESCAPE:
                     running = False
         pygame.display.flip()
-    screen_type = "game"
+    main_window.screen_type = "game"
+    main_window.dialog_is_going = False
 
 
 def game_process_main(username, main_window):
     # main_window это QWIdget, который есть главное окно игры - по нему проверяем, не надо ли закрыть
     # игровое окно. Если закрывается главное окно игры, то за ним закрывается и игровое окно
-    print("I GOT STARTED")
-    global screen_type
     sys.excepthook = except_hook
-    app = QApplication(sys.argv)
     pygame.init()
     pygame.time.set_timer(CHANGE_SPRITE, 200)
     pygame.display.set_caption("Bomber")
@@ -626,9 +619,8 @@ def game_process_main(username, main_window):
     doubled_speed = False
     pressed_move_buttons = [False, False, False, False]
     # 0 = k_down, 1 = k_left, 2 = k_right, 3 = k_up
-    print(main_window.isHidden())
     while close_win.running and not main_window.isHidden():
-        if screen_type == 'game':
+        if main_window.screen_type == 'game':
             clock.tick(30)
             x_pos_change = 0
             y_pos_change = 0
@@ -694,7 +686,7 @@ def game_process_main(username, main_window):
             screen.blit(load_image('map_bg_image.jpg'), (0, 0))
             player.move([x_pos_change, y_pos_change], player.current_level)
             camera.update(player)
-            player.check_position(player.current_level)
+            player.check_position(player.current_level, main_window)
             camera.apply(all_sprites_group)
             tiles_group.draw(screen)
             player.bomb_animation_pack.update()
@@ -705,39 +697,45 @@ def game_process_main(username, main_window):
                 draw_icon(screen, 'detector.png', (680, 20))
                 player.detect_mine(player.current_level, screen)
             if player.finished():
-                screen_type = 'dialog'
+                main_window.screen_type = 'dialog'
                 pressed_move_buttons = [False, False, False, False]
                 change_level(player, tiles_all_group)
                 if player.level_num == 2:
-                    dialog_win("turn to second level.txt", screen)
+                    dialog_win("turn to second level.txt", screen, main_window)
                 elif player.level_num == 3:
-                    dialog_win("turn to third level.txt", screen)
+                    dialog_win("turn to third level.txt", screen, main_window)
                 else:
-                    dialog_win("finish game.txt", screen)
-        if screen_type == 'buckler':
+                    dialog_win("finish game.txt", screen, main_window)
+        elif main_window.screen_type == 'dialog' and not main_window.dialog_is_going:
+            # в случае, если игра запускается с
+            # main_window.screen_type == dialog, подразумевается, что она начинается
+            # с начала, поэтому включается стартовый диалог
+            dialog_win("quick start to plot.txt", screen, main_window)
+
+        if main_window.screen_type == 'buckler':
             buckler_screen()
-            screen_type = 'popup_win'
+            main_window.screen_type = 'popup_win'
 
-        if screen_type == 'detector':
+        if main_window.screen_type == 'detector':
             detector_screen()
-            screen_type = 'popup_win'
+            main_window.screen_type = 'popup_win'
 
-        if screen_type == 'checkpoint':
+        if main_window.screen_type == 'checkpoint':
             checkpoint_screen()
-            screen_type = 'popup_win'
+            main_window.screen_type = 'popup_win'
 
-        if screen_type == 'popup_win':
+        if main_window.screen_type == 'popup_win':
             pressed_move_buttons = [False, False, False, False]
             player.player_is_moving = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                    screen_type = 'game'
+                    main_window.screen_type = 'game'
                     pygame.display.set_caption("Bomber")
 
         pygame.display.flip()
     pygame.quit()
     main_window.game_continues = False
-    print("I WAS CLOSED")
+    main_window.screen_type = 'game'
 
 
 if __name__ == "__main__":
@@ -745,6 +743,8 @@ if __name__ == "__main__":
         def __init__(self):
             self.jk = "Заходит как то человек в бар..."
             self.game_continues = True
+            self.screen_type = 'game'
+            self.dialog_is_going = False
 
         def isHidden(self):
             return True

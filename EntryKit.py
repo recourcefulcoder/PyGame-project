@@ -102,6 +102,9 @@ class MainWindow(QWidget):
         uic.loadUi("ui_files/main_window.ui", self)
         self.username = username
         self.game_continues = False
+        self.screen_type = 'game'  # другой вариант - dialog. В соответствии с этим значением
+        # в цикле функции game_process_main обрабатывается то или иное действие.
+        self.dialog_is_going = False  # дабы включать стартовый диалог в game_process_main
         self.initUi()
 
     def initUi(self):
@@ -118,15 +121,28 @@ class MainWindow(QWidget):
 
     def start_game(self):
         if not self.game_continues:
-            print("Ха, обманув")
+            self.reset_userdata()
+            self.screen_type = 'dialog'
+            game_process_main(self.username, self)
 
     def load_game(self):
         if not self.game_continues:
             self.game_continues = True
             game_process_main(self.username, self)
 
-    def closeEvent(self, event):
-        print("CLOSED!!")
+    def reset_userdata(self):
+        with open(f"data/progress/{self.username}/info.txt", mode='w', encoding="utf-8") as infofile:
+            data = {
+                "level_num": 1,
+                "checkpoint": (0, [16, 24]),
+                "has_shield": False,
+                "has_detector": False,
+                "destroyed_towers": 0,
+                "detonated_mines": [],
+                "died_times": 0
+            }
+            writedata = json.dumps(data)
+            infofile.write(writedata)
 
 
 class InstructionWindow(QWidget):
@@ -267,7 +283,6 @@ class ConfirmWindow(QWidget):
             id = cur.execute(f"SELECT id FROM users"
                              f"    WHERE nickname = '{self.login_val.text()}'"
                              ).fetchone()[0]
-            print(id)
             cur.execute(f"INSERT INTO results(id) VALUES({id})"
                         )
 
