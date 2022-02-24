@@ -9,6 +9,7 @@ from math import floor
 from generate_level import (load_level, generate_level,
                             Camera, STEP, tile_images)
 from PyQt5.QtWidgets import QWidget
+from PyQt5.QtGui import QIcon
 from PyQt5 import uic
 
 CHANGE_SPRITE = pygame.USEREVENT + 1
@@ -271,8 +272,6 @@ class Player(pygame.sprite.Sprite):
             pygame.Rect(0, self.current_orientation * self.image_height, self.image_width, self.image_height))
         self.rect = self.image.get_rect()
 
-        self.clock = pygame.time.Clock()
-
         self.detonate_zone = 200
         self.attack_zone = 50
         self.bomb_planted = False
@@ -288,7 +287,6 @@ class Player(pygame.sprite.Sprite):
             self.has_detector = data["has_detector"]
             self.current_checkpoint = data["checkpoint"]
             self.detonated_mines = data["detonated_mines"]
-            self.level_num = data["level_num"]
             self.map_x_pos = self.current_checkpoint[1][0]  # Здесь находятся координаты относительно левого верхнего
             self.map_y_pos = self.current_checkpoint[1][1]  # угла карты центра изображения персонажа
             self.rect.x = self.map_x_pos - self.image_width // 2
@@ -303,7 +301,7 @@ class Player(pygame.sprite.Sprite):
 
         self.towers = generate_level(self.current_level, tiles_all_group)
 
-    def move(self, moving_vector, map):
+    def move(self, moving_vector):
         if self.can_move:
             # определяет, не вышел ли персонаж за пределы карты
             if not (STEP * 35 >= self.map_x_pos + moving_vector[0] >= 0):
@@ -311,18 +309,18 @@ class Player(pygame.sprite.Sprite):
             if not (STEP * 29.6 >= self.map_y_pos + moving_vector[1] >= 0):
                 moving_vector[1] = 0
             map_x, map_y = count_player_coords_c(self.map_x_pos + moving_vector[0], self.map_y_pos + moving_vector[1])
-            if map[map_y][map_x] != 'grey':  # проверяет, не войдет ли персонаж в стену
+            if self.current_level[map_y][map_x] != 'grey':  # проверяет, не войдет ли персонаж в стену
                 self.rect = self.rect.move(*moving_vector)
                 self.map_x_pos += moving_vector[0]
                 self.map_y_pos += moving_vector[1]
             else:
                 map_x, map_y = count_player_coords_c(self.map_x_pos + moving_vector[0], self.map_y_pos)
-                if map[map_y][map_x] != 'grey':
+                if self.current_level[map_y][map_x] != 'grey':
                     self.rect = self.rect.move(moving_vector[0], 0)
                     self.map_x_pos += moving_vector[0]
                 else:
                     map_x, map_y = count_player_coords_c(self.map_x_pos, self.map_y_pos + moving_vector[1])
-                    if map[map_y][map_x] != 'grey':
+                    if self.current_level[map_y][map_x] != 'grey':
                         self.rect = self.rect.move(0, moving_vector[1])
                         self.map_y_pos += moving_vector[1]
 
@@ -360,14 +358,14 @@ class Player(pygame.sprite.Sprite):
                 pygame.Rect(self.last_animation_step * self.image_width, self.current_orientation * self.image_height,
                             self.image_width, self.image_height))
 
-    def check_position(self, map, main_window):
+    def check_position(self, main_window):
         # проверяет, на какую клетку наступил игрок и, если надо, выдает ему бонус или умертвляет
         y, x = count_player_coords_p(self)
         value = self.clock.tick() / 1000
-        current_cell = map[x][y]
+        current_cell = self.current_level[x][y]
         if self.died:
             self.death_timer += value
-            self.revival(map)
+            self.revival()
         else:
             if current_cell == 'white':
                 if not self.has_buckler:
@@ -408,7 +406,7 @@ class Player(pygame.sprite.Sprite):
             self.bomb_pos[1] + abs(self.bomb_animation_pack.y_indent) + HEIGHT // 2 - 50 + self.image_height, 100, 100)
         self.bomb_animation_pack.exp_row_cnt += 1
 
-    def detect_mine(self, map, screen):
+    def detect_mine(self, screen):
         # ищет и подсвечиает мины вокруг игрока
         y, x = count_player_coords_p(self)
         screen_x, screen_y = self.rect.x + self.image_width // 2, self.rect.y + self.image_height // 2
@@ -416,12 +414,12 @@ class Player(pygame.sprite.Sprite):
                            (screen_x, screen_y), 90, 3)
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
         for elem in steps:
-            if 0 <= x + elem[0] < len(map) and 0 <= y + elem[1] < len(map[0]):
-                if map[x + elem[0]][y + elem[1]] == 'red' and (x + elem[0], y + elem[1]) not in self.detonated_mines:
+            if 0 <= x + elem[0] < len(self.current_level) and 0 <= y + elem[1] < len(self.current_level[0]):
+                if self.current_level[x + elem[0]][y + elem[1]] == 'red' and (x + elem[0], y + elem[1]) not in self.detonated_mines:
                     pygame.draw.circle(screen, (255, 0, 0),
                                        (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
 
-    def revival(self, map):
+    def revival(self):
         if self.death_timer >= 2:  # две секунды персонаж стоит на месте после смерти
             self.died = False
             self.can_move = True
@@ -429,7 +427,7 @@ class Player(pygame.sprite.Sprite):
             self.bomb_pos = [None, None]
             self.death_timer = 0
             self.move([self.current_checkpoint[1][0] - self.map_x_pos,
-                       self.current_checkpoint[1][1] - self.map_y_pos], map)
+                       self.current_checkpoint[1][1] - self.map_y_pos])
 
     def exploded_cells(self):
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (0, 0)]
@@ -557,6 +555,7 @@ class LeaveGameWindow(QWidget):
     def __init__(self, player):
         super().__init__()
         uic.loadUi("ui_files/leave_game_win.ui", self)
+        self.setWindowIcon(QIcon("data/images/icon.png"))
         self.running = True
         self.player = player
         self.no_btn.clicked.connect(self.close)
@@ -682,9 +681,9 @@ def game_process_main(username, main_window):
             x_pos_change += speed * pressed_move_buttons[2]
             x_pos_change -= speed * pressed_move_buttons[1]
             screen.blit(load_image('map_bg_image.jpg'), (0, 0))
-            player.move([x_pos_change, y_pos_change], player.current_level)
+            player.move([x_pos_change, y_pos_change])
             camera.update(player)
-            player.check_position(player.current_level, main_window)
+            player.check_position(main_window)
             camera.apply(all_sprites_group)
             tiles_group.draw(screen)
             player.bomb_animation_pack.update()
@@ -693,7 +692,7 @@ def game_process_main(username, main_window):
                 draw_icon(screen, 'buckler.png', (730, 20))
             if player.has_detector:
                 draw_icon(screen, 'detector.png', (680, 20))
-                player.detect_mine(player.current_level, screen)
+                player.detect_mine(screen)
             if player.finished():
                 main_window.screen_type = 'dialog'
                 pressed_move_buttons = [False, False, False, False]
@@ -734,19 +733,3 @@ def game_process_main(username, main_window):
     pygame.quit()
     main_window.game_continues = False
     main_window.screen_type = 'game'
-
-
-if __name__ == "__main__":
-    class MainWindowTest:
-        def __init__(self):
-            self.jk = "Заходит как то человек в бар..."
-            self.game_continues = True
-            self.screen_type = 'game'
-            self.dialog_is_going = False
-
-        def isHidden(self):
-            return True
-
-
-    win = MainWindowTest()
-    game_process_main("admin", win)

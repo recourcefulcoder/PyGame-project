@@ -1,4 +1,3 @@
-import sys
 import pygame
 
 WIDTH = 800
@@ -86,9 +85,3 @@ class Camera:
         for obj in all_sprites:
             obj.rect.x += self.dx
             obj.rect.y += self.dy
-
-
-def terminate():
-    pygame.quit()
-    print("quited")
-    sys.exit()

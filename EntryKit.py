@@ -391,7 +391,7 @@ class StatisticsWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    win = MainWindow("admin")
+    win = HelloWindow()
     win.show()
     sys.excepthook = except_hook
     sys.exit(app.exec())
