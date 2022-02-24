@@ -1,12 +1,15 @@
 import sys
 import sqlite3
+import os
 import json
 from PyQt5.QtCore import QSize
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QWidget, QLineEdit, QApplication)
+from PyQt5.QtWidgets import (QWidget, QLineEdit, QApplication,
+                             QScrollArea, QLabel)
 from PyQt5.QtGui import QIcon
 from PyQt5 import uic
 from PyQt5.QtGui import QImage, QPalette, QBrush
+from pprint import pprint
 
 
 def except_hook(cls, exception, traceback):
@@ -103,8 +106,56 @@ class MainWindow(QWidget):
     def initUi(self):
         self.setFixedSize(600, 300)
         self.setWindowIcon(QIcon("data/images/icon.png"))
-        self.instruction_btn.setIcon(QIcon("data/images/question.jpg"))
         self.greeting_label.setText(f"Здравствуй, {self.username}!")
+        self.instruction_btn.clicked.connect(self.show_instruction)
+
+    def show_instruction(self):
+        self.instr_win = InstructionWindow(self)
+        self.instr_win.show()
+        self.close()
+
+
+class InstructionWindow(QWidget):
+    def __init__(self, parent):
+        super().__init__()
+        uic.loadUi("ui_files/instruction_win.ui", self)
+        self.parent = parent
+        self.initUi()
+
+    def initUi(self):
+        self.setWindowIcon(QIcon("data/images/icon.png"))
+        self.setFixedSize(self.width(), self.height())
+        self.return_btn.clicked.connect(self.return_parent)
+        self.init_child_widget()
+
+    def init_child_widget(self):
+        self.child_widget = QWidget(self)
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setGeometry(50, 50, self.width() - 100, self.height() - 100)
+        self.setStyleSheet('QScrollArea {border-style: none;}')
+        self.child_widget.setStyleSheet("QLabel {font-size: 12pt;}")
+        self.scroll_area.setWidget(self.child_widget)
+
+        self.child_widget.resize(self.width() - 100, 0)
+        with open("data/game_instruction.txt", mode='r', encoding='utf-8') as instr:
+            data = ''.join(instr.readlines())
+
+        current_elem_ordinate = 20
+        question = QLabel(data, self.child_widget)  # setting question
+        question.setWordWrap(True)
+        question.setFixedWidth(self.width() - 100)
+        question.adjustSize()
+        question.move(0, current_elem_ordinate)
+        current_elem_ordinate += question.height() + 10  # setting question
+        self.child_widget.resize(self.child_widget.width(), current_elem_ordinate)
+
+    def return_parent(self):
+        self.parent.show()
+        self.close()
+
+    def closeEvent(self, event):
+        delattr(self, 'scroll_area')
+        delattr(self, 'child_widget')
 
 
 class AddUserWindow(QWidget):
@@ -201,6 +252,12 @@ class ConfirmWindow(QWidget):
             cur.execute(
                 f"INSERT INTO users(nickname, password) VALUES('{self.login_val.text()}', '{self.pass_val.text()}')"
             )
+            id = cur.execute(f"SELECT id FROM users"
+                             f"    WHERE nickname = '{self.login_val.text()}'"
+                             ).fetchone()[0]
+            print(id)
+            cur.execute(f"INSERT INTO results(id) VALUES({id})"
+                        )
 
             self.add_progress_info(self.login_val.text())
 
@@ -213,20 +270,31 @@ class ConfirmWindow(QWidget):
                                                    ' 1px; border-color: red;')
 
         self.con.commit()
+        self.con.close()
 
         self.close()
 
     def add_progress_info(self, username):
-        with open(f"data/progress/{username}.txt", mode='w', encoding="utf-8") as infofile:
+        os.chdir("./data/progress")
+        os.mkdir(f"{username}")
+        os.chdir("../..")
+        with open(f"data/progress/{username}/info.txt", mode='w', encoding="utf-8") as infofile:
             data = {
                 "level_num": 1,
-                "checkpoint": (0, [0, 0]),
+                "checkpoint": (0, [16, 24]),
                 "has_shield": False,
                 "has_detector": False,
-                "destroyed_towers": []
+                "destroyed_towers": 0,
+                "detonated_mines": [],
+                "died_times": 0
             }
             writedata = json.dumps(data)
             infofile.write(writedata)
+        with open(f"data/progress/{username}/map.txt", mode='w', encoding='utf-8') as mapfile:
+            with open(f"data/levels/first_level.txt", mode='r', encoding='utf-8') as fir_level:
+                map = fir_level.readlines()
+                for elem in map:
+                    mapfile.write(elem)
 
 
 if __name__ == "__main__":
