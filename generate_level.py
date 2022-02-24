@@ -5,7 +5,6 @@ WIDTH = 800
 HEIGHT = 600
 STEP = 50
 
-print("generate_level set_mode")
 pygame.display.set_mode((WIDTH, HEIGHT))
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
