@@ -5,7 +5,8 @@ import json
 from PyQt5.QtCore import QSize
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QWidget, QLineEdit, QApplication,
-                             QScrollArea, QLabel)
+                             QScrollArea, QLabel, QMainWindow,
+                             QTableWidgetItem)
 from PyQt5.QtGui import QIcon
 from PyQt5 import uic
 from PyQt5.QtGui import QImage, QPalette, QBrush
@@ -114,6 +115,7 @@ class MainWindow(QWidget):
         self.instruction_btn.clicked.connect(self.show_instruction)
         self.new_game_btn.clicked.connect(self.start_game)
         self.load_game_btn.clicked.connect(self.load_game)
+        self.statistics_btn.clicked.connect(self.load_stats)
 
     def show_instruction(self):
         self.instr_win = InstructionWindow()
@@ -148,6 +150,10 @@ class MainWindow(QWidget):
                 map = fir_level.readlines()
                 for elem in map:
                     mapfile.write(elem)
+
+    def load_stats(self):
+        self.action_win = StatisticsWindow()
+        self.action_win.show()
 
 
 class InstructionWindow(QWidget):
@@ -329,9 +335,63 @@ class ConfirmWindow(QWidget):
                     mapfile.write(elem)
 
 
+class StatisticsWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        uic.loadUi('ui_files/statistics.ui', self)
+        self.setWindowTitle("Статистика")
+        self.setWindowIcon(QIcon('data/images/icon.png'))
+
+        self.con = sqlite3.connect("database.sqlite")
+        self.cur = self.con.cursor()
+
+        self.key = 4
+
+        self.level1.clicked.connect(lambda: self.change_key(1))
+        self.level2.clicked.connect(lambda: self.change_key(2))
+        self.level3.clicked.connect(lambda: self.change_key(3))
+        self.total_res.clicked.connect(lambda: self.change_key(4))
+
+        self.data = [self.data_by_level(1), self.data_by_level(2), self.data_by_level(3), self.data_by_level(4)]
+
+        self.return_btn.clicked.connect(self.close)
+        self.show_all()
+
+    def show_all(self):
+        self.tableWidget.setColumnCount(2)
+        self.tableWidget.setHorizontalHeaderLabels(['никнейм', 'результат'])
+        self.tableWidget.setRowCount(0)
+        for i, row in enumerate(self.data[self.key - 1]):
+            self.tableWidget.setRowCount(
+                self.tableWidget.rowCount() + 1)
+            for j, elem in enumerate(row):
+                self.tableWidget.setItem(
+                    i, j, QTableWidgetItem(str(elem)))
+
+    def data_by_level(self, num):
+        columns = ["fir_level", "sec_level", "third_level", "total"]
+        column = columns[num - 1]
+        row_data = self.cur.execute(f"SELECT id, {column} FROM results"
+                                    f"  WHERE {column} IS NOT NULL"
+                                    ).fetchall()
+        data = list()
+        for elem in row_data:
+            name = self.cur.execute(f"SELECT nickname FROM users"
+                                    f"  WHERE id = {elem[0]}"
+                                    ).fetchone()[0]
+            data.append([name, elem[1]])
+        data.sort(key=lambda x: (x[1], x[0]))
+        return data
+
+    def change_key(self, value):
+        self.key = value
+        self.show_all()
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    win = HelloWindow()
+    win = MainWindow("admin")
     win.show()
     sys.excepthook = except_hook
     sys.exit(app.exec())
