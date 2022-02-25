@@ -733,6 +733,8 @@ def game_process_main(username, main_window):
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     main_window.screen_type = 'game'
                     pygame.display.set_caption("Bomber")
+                    pygame.time.set_timer(CHANGE_SPRITE, 200)
+                    doubled_speed = False
 
         pygame.display.flip()
     pygame.quit()
