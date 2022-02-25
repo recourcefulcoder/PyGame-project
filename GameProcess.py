@@ -299,7 +299,8 @@ class Player(pygame.sprite.Sprite):
             # в нулевом элементе должна (!) находится группа, состоящая только из клеток поля
             item.kill()
 
-        self.towers = generate_level(self.current_level, tiles_all_group)
+        self.walls_group = pygame.sprite.Group()
+        self.towers = generate_level(self.current_level, tiles_all_group, self.walls_group)
 
     def move(self, moving_vector):
         if self.can_move:
@@ -308,21 +309,24 @@ class Player(pygame.sprite.Sprite):
                 moving_vector[0] = 0
             if not (STEP * 29.6 >= self.map_y_pos + moving_vector[1] >= 0):
                 moving_vector[1] = 0
-            map_x, map_y = count_player_coords_c(self.map_x_pos + moving_vector[0], self.map_y_pos + moving_vector[1])
-            if self.current_level[map_y][map_x] != 'grey':  # проверяет, не войдет ли персонаж в стену
-                self.rect = self.rect.move(*moving_vector)
-                self.map_x_pos += moving_vector[0]
-                self.map_y_pos += moving_vector[1]
-            else:
-                map_x, map_y = count_player_coords_c(self.map_x_pos + moving_vector[0], self.map_y_pos)
-                if self.current_level[map_y][map_x] != 'grey':
-                    self.rect = self.rect.move(moving_vector[0], 0)
-                    self.map_x_pos += moving_vector[0]
-                else:
-                    map_x, map_y = count_player_coords_c(self.map_x_pos, self.map_y_pos + moving_vector[1])
-                    if self.current_level[map_y][map_x] != 'grey':
-                        self.rect = self.rect.move(0, moving_vector[1])
-                        self.map_y_pos += moving_vector[1]
+            self.rect = self.rect.move(moving_vector[0], 0)
+            self.map_x_pos += moving_vector[0]
+            if self.collides_wall():
+                self.rect = self.rect.move(-moving_vector[0], 0)
+                self.map_x_pos -= moving_vector[0]
+            self.rect = self.rect.move(0, moving_vector[1])
+            self.map_y_pos += moving_vector[1]
+            if self.collides_wall():
+                self.rect = self.rect.move(0, -moving_vector[1])
+                self.map_y_pos -= moving_vector[1]
+
+    def collides_wall(self):
+        check = False
+        for elem in self.walls_group:
+            if pygame.sprite.collide_mask(self, elem):
+                check = True
+                break
+        return check
 
     def plant_bomb(self):
         if not self.bomb_planted:
@@ -415,7 +419,8 @@ class Player(pygame.sprite.Sprite):
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
         for elem in steps:
             if 0 <= x + elem[0] < len(self.current_level) and 0 <= y + elem[1] < len(self.current_level[0]):
-                if self.current_level[x + elem[0]][y + elem[1]] == 'red' and (x + elem[0], y + elem[1]) not in self.detonated_mines:
+                if self.current_level[x + elem[0]][y + elem[1]] == 'red' and (
+                x + elem[0], y + elem[1]) not in self.detonated_mines:
                     pygame.draw.circle(screen, (255, 0, 0),
                                        (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
 

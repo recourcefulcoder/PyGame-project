@@ -8,6 +8,7 @@ pygame.display.set_mode((WIDTH, HEIGHT))
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
+walls_group = pygame.sprite.Group()
 
 
 def load_image(name, color_key=-1):  # загружает изображения
@@ -45,12 +46,12 @@ def load_level(username):  # считывает карту из файла
     return level_map
 
 
-def generate_level(level, tiles_all_groups):  # отрисовывает поле
+def generate_level(level, tiles_all_groups, walls_group):  # отрисовывает поле
     towers_dict = dict()
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == 'grey':
-                Tile('wall', x, y, 'wall', tiles_all_groups)
+                walls_group.add(Tile('wall', x, y, 'wall', tiles_all_groups, True))
             elif level[y][x] == 'brown':
                 towers_dict[(y, x)] = Tile('tower', x, y, 'tower', tiles_all_groups)
             else:
@@ -63,11 +64,13 @@ def generate_level(level, tiles_all_groups):  # отрисовывает пол�
 
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, tile_image, pos_x, pos_y, tile_type, tiles_all_group):
-        super().__init__(*tiles_all_group)
+    def __init__(self, tile_image, pos_x, pos_y, tile_type, tiles_all_group, wall=False):
+        super().__init__(*tiles_all_group, walls_group)
         self.image = tile_images[tile_image]
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
         self.type = tile_type
+        if wall:
+            self.mask = pygame.mask.from_surface(self.image)
 
 
 class Camera:
