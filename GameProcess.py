@@ -302,7 +302,7 @@ class Player(pygame.sprite.Sprite):
         self.walls_group = pygame.sprite.Group()
         self.towers = generate_level(self.current_level, tiles_all_group, self.walls_group)
 
-    def move(self, moving_vector):
+    def move(self, moving_vector, revival=False):
         if self.can_move:
             # определяет, не вышел ли персонаж за пределы карты
             if not (STEP * 34.9 >= self.map_x_pos + moving_vector[0] >= 0):
@@ -311,12 +311,12 @@ class Player(pygame.sprite.Sprite):
                 moving_vector[1] = 0
             self.rect = self.rect.move(moving_vector[0], 0)
             self.map_x_pos += moving_vector[0]
-            if self.collides_wall():
+            if self.collides_wall() and not revival:
                 self.rect = self.rect.move(-moving_vector[0], 0)
                 self.map_x_pos -= moving_vector[0]
             self.rect = self.rect.move(0, moving_vector[1])
             self.map_y_pos += moving_vector[1]
-            if self.collides_wall():
+            if self.collides_wall() and not revival:
                 self.rect = self.rect.move(0, -moving_vector[1])
                 self.map_y_pos -= moving_vector[1]
 
@@ -420,7 +420,7 @@ class Player(pygame.sprite.Sprite):
         for elem in steps:
             if 0 <= x + elem[0] < len(self.current_level) and 0 <= y + elem[1] < len(self.current_level[0]):
                 if self.current_level[x + elem[0]][y + elem[1]] == 'red' and (
-                x + elem[0], y + elem[1]) not in self.detonated_mines:
+                        x + elem[0], y + elem[1]) not in self.detonated_mines:
                     pygame.draw.circle(screen, (255, 0, 0),
                                        (screen_x + 50 * elem[1], screen_y + 50 * elem[0]), 12.5)
 
@@ -432,7 +432,7 @@ class Player(pygame.sprite.Sprite):
             self.bomb_pos = [None, None]
             self.death_timer = 0
             self.move([self.current_checkpoint[1][0] - self.map_x_pos,
-                       self.current_checkpoint[1][1] - self.map_y_pos])
+                       self.current_checkpoint[1][1] - self.map_y_pos], True)
 
     def exploded_cells(self):
         steps = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (0, 0)]
