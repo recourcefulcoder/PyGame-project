@@ -305,7 +305,7 @@ class Player(pygame.sprite.Sprite):
     def move(self, moving_vector):
         if self.can_move:
             # определяет, не вышел ли персонаж за пределы карты
-            if not (STEP * 35 >= self.map_x_pos + moving_vector[0] >= 0):
+            if not (STEP * 34.9 >= self.map_x_pos + moving_vector[0] >= 0):
                 moving_vector[0] = 0
             if not (STEP * 29.6 >= self.map_y_pos + moving_vector[1] >= 0):
                 moving_vector[1] = 0
