@@ -105,7 +105,7 @@ def change_level(player, tiles_all_group):
                     f"  SET {column} = {player.died_times}"
                     f"  WHERE id = {id}"
                     )
-        values = data[0][1:4]
+        values = list(data[0][1:4])
         values[player.level_num - 1] = player.died_times
         if not None in values:
             total = 0
